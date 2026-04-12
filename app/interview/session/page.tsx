@@ -41,10 +41,13 @@ export default function InterviewSessionPage() {
       },
       selfIntro: (_data: unknown) => {
         console.log('[Interview] 进入自我介绍阶段');
+        // 确保自我介绍阶段状态正确设置
+        setInterviewPhase('self_intro');
         // self_intro 信号表示服务端已准备好，前端可以开始引导用户自我介绍
         // 录音启动逻辑在 useAudioPlayback 中处理
       },
       newQuestion: (data: { content: string; questionType: string; questionIndex: number; isFollowUp: boolean }) => {
+        console.log('[Interview] 收到新问题:', data.content.substring(0, 50));
         setCurrentQuestion({
           content: data.content,
           type: data.questionType,
@@ -53,6 +56,7 @@ export default function InterviewSessionPage() {
         });
         // 收到第一道技术题时切换到问答阶段
         setInterviewPhase('questioning');
+        console.log('[Interview] 已设置 currentQuestion 和 interviewPhase');
         // answerPhase 和 answerStartTime 的设置延迟到 beep 播放完毕后，
         // 由 useAudioPlayback 中的 startRecording() 触发
       },

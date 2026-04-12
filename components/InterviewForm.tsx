@@ -25,7 +25,8 @@ const InterviewForm = () => {
 
   const [resume, setResume] = useState('');
   const [jobInfo, setJobInfo] = useState('');
-  const [maxQuestions, setMaxQuestions] = useState(10);
+  const [maxTechnicalQuestions, setMaxTechnicalQuestions] = useState(6);
+  const [maxBusinessQuestions, setMaxBusinessQuestions] = useState(4);
   const [maxFollowUps, setMaxFollowUps] = useState(2);
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -147,7 +148,8 @@ const InterviewForm = () => {
       wsClient.sendStartInterview({
         resume,
         jobInfo,
-        maxQuestions,
+        maxTechnicalQuestions,
+        maxBusinessQuestions,
         maxFollowUps,
       });
       router.push('/interview/session');
@@ -157,8 +159,10 @@ const InterviewForm = () => {
     }
   };
 
-  const incrementMaxQuestions = () => setMaxQuestions(prev => Math.min(prev + 1, 20));
-  const decrementMaxQuestions = () => setMaxQuestions(prev => Math.max(prev - 1, 1));
+  const incrementMaxTechnicalQuestions = () => setMaxTechnicalQuestions(prev => Math.min(prev + 1, 15));
+  const decrementMaxTechnicalQuestions = () => setMaxTechnicalQuestions(prev => Math.max(prev - 1, 1));
+  const incrementMaxBusinessQuestions = () => setMaxBusinessQuestions(prev => Math.min(prev + 1, 10));
+  const decrementMaxBusinessQuestions = () => setMaxBusinessQuestions(prev => Math.max(prev - 1, 1));
   const incrementMaxFollowUps = () => setMaxFollowUps(prev => Math.min(prev + 1, 5));
   const decrementMaxFollowUps = () => setMaxFollowUps(prev => Math.max(prev - 1, 0));
 
@@ -301,30 +305,60 @@ const InterviewForm = () => {
         {showSettings && (
           <div className="settings-container space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Settings Controls */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Max Questions */}
+            <div className="grid grid-cols-3 gap-3">
+              {/* Technical Questions */}
               <div className="group relative p-4 rounded-2xl border border-border bg-background hover:border-primary/30 hover:bg-muted/20 transition-all duration-300 cursor-default">
                 <label className="text-xs font-medium text-muted-foreground mb-2.5 block">
-                  问题数
+                  技术题数
                 </label>
                 <div className="flex items-center justify-between">
                   <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
-                    {maxQuestions}
+                    {maxTechnicalQuestions}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={decrementMaxQuestions}
+                      onClick={decrementMaxTechnicalQuestions}
                       className="w-7 h-7 rounded-lg border border-border flex items-center justify-center hover:border-primary hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer"
-                      aria-label="减少问题数"
+                      aria-label="减少技术题数"
                     >
                       <span className="text-base font-semibold leading-none">−</span>
                     </button>
                     <button
                       type="button"
-                      onClick={incrementMaxQuestions}
+                      onClick={incrementMaxTechnicalQuestions}
                       className="w-7 h-7 rounded-lg border border-border flex items-center justify-center hover:border-primary hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer"
-                      aria-label="增加问题数"
+                      aria-label="增加技术题数"
+                    >
+                      <span className="text-base font-semibold leading-none">+</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Business Questions */}
+              <div className="group relative p-4 rounded-2xl border border-border bg-background hover:border-primary/30 hover:bg-muted/20 transition-all duration-300 cursor-default">
+                <label className="text-xs font-medium text-muted-foreground mb-2.5 block">
+                  业务题数
+                </label>
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl font-bold text-foreground tabular-nums leading-none">
+                    {maxBusinessQuestions}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={decrementMaxBusinessQuestions}
+                      className="w-7 h-7 rounded-lg border border-border flex items-center justify-center hover:border-primary hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer"
+                      aria-label="减少业务题数"
+                    >
+                      <span className="text-base font-semibold leading-none">−</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={incrementMaxBusinessQuestions}
+                      className="w-7 h-7 rounded-lg border border-border flex items-center justify-center hover:border-primary hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer"
+                      aria-label="增加业务题数"
                     >
                       <span className="text-base font-semibold leading-none">+</span>
                     </button>

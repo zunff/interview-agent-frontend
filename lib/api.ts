@@ -171,12 +171,13 @@ export class WebSocketClient {
   }
 
   // 启动面试
-  sendStartInterview(data: { resume: string; jobInfo: string; maxQuestions?: number; maxFollowUps?: number }): void {
+  sendStartInterview(data: { resume: string; jobInfo: string; maxTechnicalQuestions?: number; maxBusinessQuestions?: number; maxFollowUps?: number }): void {
     const message: StartInterviewMessage = {
       type: 'start_interview',
       resume: data.resume,
       jobInfo: data.jobInfo,
-      maxQuestions: data.maxQuestions,
+      maxTechnicalQuestions: data.maxTechnicalQuestions,
+      maxBusinessQuestions: data.maxBusinessQuestions,
       maxFollowUps: data.maxFollowUps,
     };
     this.send(message);

@@ -43,7 +43,8 @@ export interface StartInterviewMessage {
   type: 'start_interview';
   resume: string;
   jobInfo: string;
-  maxQuestions?: number;
+  maxTechnicalQuestions?: number;
+  maxBusinessQuestions?: number;
   maxFollowUps?: number;
 }
 
