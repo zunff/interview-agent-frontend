@@ -201,9 +201,17 @@ export function useAudioPlayback() {
         setAudioError(true, data?.message ?? '语音合成失败');
         setIsPlaying(false);
 
-        // TTS 错误时 beep，等用户说话开始录音
-        playBeep();
-        console.log('[useAudioPlayback] TTS 错误，等待用户说话开始录音...');
+        // Mock 模式下直接启动录音（没有真实音频输入，VAD 不会触发）
+        if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true') {
+          playBeep().then(() => {
+            console.log('[useAudioPlayback] Mock 模式下直接启动录音');
+            startRecording();
+          });
+        } else {
+          // 真实模式下等用户说话开始录音
+          playBeep();
+          console.log('[useAudioPlayback] TTS 错误，等待用户说话开始录音...');
+        }
       },
     };
 

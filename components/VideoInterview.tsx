@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useInterviewStore } from '../store/interviewStore';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
-import { Video, VideoOff, Mic, MicOff, Phone, Clock } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, Phone, Clock, MessageSquare, X, ChevronLeft } from 'lucide-react';
 import QuestionDisplay from './QuestionDisplay';
 import ThemeToggle from './ThemeToggle';
 import { AudioEncoderManager } from '../lib/audioEncoderManager';
@@ -48,6 +48,7 @@ const VideoInterview = () => {
   const [isLoadingModel, setIsLoadingModel] = useState(true);
   const [mediaError, setMediaError] = useState('');
   const [isModelReady, setIsModelReady] = useState(false);
+  const [isQuestionExpanded, setIsQuestionExpanded] = useState(true);
 
   // 将 Uint8Array 转换为 base64
   const uint8ToBase64 = useCallback((data: Uint8Array): string => {
@@ -381,17 +382,28 @@ const VideoInterview = () => {
 
           <ThemeToggle />
 
+          {/* Toggle Question Panel Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsQuestionExpanded(!isQuestionExpanded)}
+            className="text-muted-foreground hover:text-foreground gap-2"
+          >
+            <MessageSquare className="size-4" />
+            {isQuestionExpanded ? '隐藏问题' : '显示问题'}
+          </Button>
+
           <Button variant="ghost" size="sm" onClick={handleExit} className="text-muted-foreground hover:text-foreground">
             退出
           </Button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Video Area */}
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="relative max-w-5xl w-full aspect-video rounded-3xl overflow-hidden shadow-2xl ring-1 ring-border/50">
+      {/* Main Content - Horizontal Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Video Area - Left Side */}
+        <div className="flex-1 flex items-center justify-center p-6 min-w-0 transition-all duration-300">
+          <div className="relative w-full h-full max-w-5xl rounded-3xl overflow-hidden shadow-2xl ring-1 ring-border/50">
             {isCameraEnabled ? (
               <video
                 ref={videoRef}
@@ -423,9 +435,56 @@ const VideoInterview = () => {
           </div>
         </div>
 
-        {/* Question Display - Always visible below video */}
-        <div className="px-6 pb-6">
-          <QuestionDisplay />
+        {/* Question Panel - Right Drawer */}
+        <div
+          className={cn(
+            "border-l border-border/50 bg-card/95 backdrop-blur-xl shadow-2xl flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden",
+            isQuestionExpanded ? "w-[420px]" : "w-0"
+          )}
+        >
+          <div className="w-[420px] h-full flex flex-col relative">
+            {/* Drawer Toggle Button - Floating */}
+            <button
+              onClick={() => setIsQuestionExpanded(!isQuestionExpanded)}
+              className={cn(
+                "absolute top-1/2 -translate-y-1/2 w-10 h-20 bg-primary/10 backdrop-blur-xl border border-primary/20 rounded-l-xl flex flex-col items-center justify-center gap-1 hover:bg-primary/20 hover:border-primary/30 transition-all duration-200 shadow-xl z-30",
+                "group",
+                isQuestionExpanded ? "-left-10" : "-left-10"
+              )}
+              aria-label={isQuestionExpanded ? "收起问题面板" : "展开问题面板"}
+            >
+              <ChevronLeft
+                className={cn(
+                  "size-5 text-primary transition-transform duration-300",
+                  !isQuestionExpanded && "rotate-180"
+                )}
+              />
+              <span className="text-[10px] text-primary font-medium writing-mode-vertical">
+                {isQuestionExpanded ? "收起" : "问题"}
+              </span>
+            </button>
+
+            {/* Question Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="size-4 text-primary" />
+                <h2 className="text-sm font-semibold text-foreground">面试问题</h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsQuestionExpanded(false)}
+                className="size-8 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+
+            {/* Question Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+              <QuestionDisplay />
+            </div>
+          </div>
         </div>
       </div>
 
