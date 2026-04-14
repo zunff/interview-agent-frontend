@@ -3,7 +3,9 @@
 import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useInterviewStore } from '../../../store/interviewStore';
-import { api } from '../../../lib/api';
+import { api, isMockMode } from '../../../lib/api';
+import { generateMockReport } from '../../../mock/data/report';
+import { generateEvaluation } from '../../../mock/data/evaluations';
 import ReportDisplay from '../../../components/ReportDisplay';
 import { Button } from '../../../components/ui/button';
 import ParticleBackground from '../../../components/ParticleBackground';
@@ -25,6 +27,15 @@ export default function ReportPage() {
     if (!report) {
       const fetchReport = async () => {
         try {
+          if (isMockMode()) {
+            // Mock 模式：生成模拟报告
+            const mockEvaluations = Array.from({ length: 3 }, (_, i) =>
+              generateEvaluation(i + 1, '模拟面试问题'),
+            );
+            const mockReport = generateMockReport(sessionId, mockEvaluations);
+            setReport(mockReport);
+            return;
+          }
           const reportData = await api.getReport(sessionId);
           setReport(reportData.report);
         } catch (error) {

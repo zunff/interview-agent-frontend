@@ -7,6 +7,10 @@ import type {
   StartInterviewMessage,
 } from '../types/index.js';
 
+// Re-export 工厂函数，供组件使用
+export { createWebSocketClient, isMockMode } from './createWebSocketClient';
+export type { WebSocketClientLike } from './createWebSocketClient';
+
 // API基础URL
 const API_BASE_URL = process.env.API_BASE_URL || ''; // 使用相对路径，通过Next.js代理
 const WS_BASE_URL = process.env.WS_BASE_URL || 'ws://localhost:8080';

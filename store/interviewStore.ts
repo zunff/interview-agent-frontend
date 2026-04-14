@@ -5,6 +5,7 @@ import type {
   QuestionInfo,
 } from '../types';
 import { WebSocketClient } from '../lib/api';
+import type { WebSocketClientLike } from '../lib/api';
 import type { AudioEncoderManager } from '../lib/audioEncoderManager';
 
 interface InterviewState {
@@ -22,7 +23,7 @@ interface InterviewState {
   report: string | null;
 
   // WebSocket客户端
-  wsClient: WebSocketClient | null;
+  wsClient: WebSocketClientLike | null;
 
   // 媒体控制
   isCameraEnabled: boolean;
@@ -57,7 +58,7 @@ interface InterviewState {
   addEvaluationResult: (result: EvaluationResult) => void;
   setCurrentEvaluation: (evaluation: EvaluationResult | null) => void;
   setReport: (report: string) => void;
-  setWsClient: (client: WebSocketClient) => void;
+  setWsClient: (client: WebSocketClientLike) => void;
   toggleCamera: () => void;
   toggleMic: () => void;
   setAnswerPhase: (phase: 'waiting' | 'answering' | 'evaluating') => void;

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "mock": "cross-env NEXT_PUBLIC_MOCK_MODE=true next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -35,6 +36,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "playwright": "^1.59.1",

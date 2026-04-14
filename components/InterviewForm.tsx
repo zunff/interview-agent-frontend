@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { WebSocketClient } from '../lib/api';
+import { createWebSocketClient } from '../lib/api';
 import { useInterviewStore } from '../store/interviewStore';
 import { parseFile, isValidFileType, isValidFileSize } from '../lib/fileParser';
 import { cn } from '../lib/utils';
@@ -141,7 +141,7 @@ const InterviewForm = () => {
     setError('');
     try {
       // 通过 WebSocket 启动面试（不再使用 REST API）
-      const wsClient = new WebSocketClient();
+      const wsClient = createWebSocketClient();
       setWsClient(wsClient);
       await wsClient.connect();
       setInterviewStatus('进行中');
