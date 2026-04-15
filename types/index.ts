@@ -12,6 +12,7 @@ export interface QuestionInfo {
 // WebSocket消息类型
 export type WebSocketMessageType =
   | 'start_interview'
+  | 'audio_start'
   | 'video_frame'
   | 'audio_chunk'
   | 'answer_complete'
@@ -48,9 +49,15 @@ export interface StartInterviewMessage {
   maxFollowUps?: number;
 }
 
+export interface AudioStartMessage {
+  type: 'audio_start';
+  startTimestampMs: number;
+}
+
 export interface VideoFrameMessage {
   type: 'video_frame';
   frame: string;
+  timestampMs: number;
 }
 
 export interface AudioChunkMessage {
@@ -156,6 +163,7 @@ export interface BaseWebSocketMessage {
 // 联合类型
 export type WebSocketMessage =
   | StartInterviewMessage
+  | AudioStartMessage
   | VideoFrameMessage
   | AudioChunkMessage
   | AnswerCompleteMessage

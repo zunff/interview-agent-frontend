@@ -5,6 +5,7 @@ import type {
   AnswerCompleteMessage,
   SelfIntroCompleteMessage,
   StartInterviewMessage,
+  AudioStartMessage,
 } from '../types/index.js';
 
 // Re-export 工厂函数，供组件使用
@@ -187,11 +188,21 @@ export class WebSocketClient {
     this.send(message);
   }
 
+  // 发送音频开始信号（必须在 audio_chunk 之前发送）
+  sendAudioStart(startTimestampMs: number): void {
+    const message: AudioStartMessage = {
+      type: 'audio_start',
+      startTimestampMs,
+    };
+    this.send(message);
+  }
+
   // 发送视频帧
-  sendVideoFrame(frame: string): void {
+  sendVideoFrame(frame: string, timestampMs: number): void {
     const message: VideoFrameMessage = {
       type: 'video_frame',
       frame,
+      timestampMs,
     };
     this.send(message);
   }
@@ -203,6 +214,12 @@ export class WebSocketClient {
       audio,
     };
     this.send(message);
+
+    // 每 5 秒打印一次日志
+    const now = Date.now();
+    if (now - this.lastBinaryLogTime >= 5000) {
+      console.log(`[WS] 发送 audio_chunk, 音频数据大小: ${audio.length} bytes (base64)`);
+    }
   }
 
   // 标记回答完成
@@ -363,8 +380,10 @@ export class WebSocketClient {
     switch (message.type) {
       case 'start_interview':
         return typeof message.resume === 'string' && typeof message.jobInfo === 'string';
+      case 'audio_start':
+        return typeof message.startTimestampMs === 'number';
       case 'video_frame':
-        return typeof message.frame === 'string';
+        return typeof message.frame === 'string' && typeof message.timestampMs === 'number';
       case 'audio_chunk':
         return typeof message.audio === 'string';
       case 'answer_complete':

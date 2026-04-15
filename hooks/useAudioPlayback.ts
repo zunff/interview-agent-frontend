@@ -81,18 +81,50 @@ export function useAudioPlayback() {
   }, []);
 
   /**
-   * 开始录音：启动 encoder 发送 + 更新 store 状态。
+   * 开始录音：发送 audio_start 信号 + 启动 encoder 发送 + 更新 store 状态。
    */
   const startRecording = useCallback(() => {
+    const wsClient = useInterviewStore.getState().wsClient;
     const encoder = useInterviewStore.getState()._audioEncoderGetter?.();
-    if (encoder) {
-      encoder.startSending();
+
+    console.log('[useAudioPlayback] 开始录音 - encoder 存在:', !!encoder);
+
+    // 先发送 audio_start 消息，携带录音开始时间戳
+    if (wsClient) {
+      const startTimestampMs = Date.now();
+      wsClient.sendAudioStart(startTimestampMs);
+      console.log('[useAudioPlayback] 发送 audio_start:', startTimestampMs);
     }
-    setAnswerPhase('answering');
-    setAnswerStartTime(Date.now());
-    setIsRecordingAudio(true);
-    setIsRecording(true);
-    console.log('[useAudioPlayback] 开始录音');
+
+    // 启动 encoder 发送音频数据
+    // 如果 encoder 不存在，延迟重试（等待 VideoInterview 初始化完成）
+    if (encoder) {
+      console.log('[useAudioPlayback] 调用 encoder.startSending()');
+      encoder.startSending();
+
+      setAnswerPhase('answering');
+      setAnswerStartTime(Date.now());
+      setIsRecordingAudio(true);
+      setIsRecording(true);
+      console.log('[useAudioPlayback] 开始录音');
+    } else {
+      console.warn('[useAudioPlayback] encoder 为空，500ms 后重试...');
+      setTimeout(() => {
+        const retryEncoder = useInterviewStore.getState()._audioEncoderGetter?.();
+        if (retryEncoder) {
+          console.log('[useAudioPlayback] 重试成功，调用 encoder.startSending()');
+          retryEncoder.startSending();
+
+          setAnswerPhase('answering');
+          setAnswerStartTime(Date.now());
+          setIsRecordingAudio(true);
+          setIsRecording(true);
+          console.log('[useAudioPlayback] 开始录音');
+        } else {
+          console.error('[useAudioPlayback] 重试失败，encoder 仍然为空！');
+        }
+      }, 500);
+    }
   }, [setAnswerPhase, setAnswerStartTime, setIsRecordingAudio]);
 
   /**

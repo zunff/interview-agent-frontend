@@ -33,6 +33,8 @@ export class AudioEncoderManager {
   // 调试日志计数器（减少日志频率）
   private chunkCount = 0;
   private lastLogTime = 0;
+  private audioSendCount = 0;
+  private lastAudioLogTime = 0;
 
   constructor(onEncodedChunk: OnEncodedChunk) {
     this.onEncodedChunk = onEncodedChunk;
@@ -99,6 +101,13 @@ export class AudioEncoderManager {
         this.chunkCount = 0;
         this.lastLogTime = now;
       }
+
+      // 每 5 秒打印一次详细日志
+      this.audioSendCount++;
+      if (now - this.lastAudioLogTime >= 5000) {
+        console.log(`[AudioEncoder] 音频发送状态: sending=${this.sending}, 累计发送 ${this.audioSendCount} 个音频块`);
+        this.lastAudioLogTime = now;
+      }
     };
 
     this.sourceNode.connect(this.scriptProcessor);
@@ -120,6 +129,7 @@ export class AudioEncoderManager {
     if (this.sending) return;
     this.sending = true;
     console.log('[AudioEncoder] 开始发送音频数据 (16kHz PCM 16-bit)');
+    console.log('[AudioEncoder] 当前时间:', new Date().toISOString());
   }
 
   /**

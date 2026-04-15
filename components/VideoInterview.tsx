@@ -152,6 +152,7 @@ const VideoInterview = () => {
 
         // 注册 encoder getter，让 useAudioPlayback 可以获取 encoder 引用
         setAudioEncoderGetter(() => audioEncoderRef.current);
+        console.log('[VideoInterview] 已注册 AudioEncoder getter');
       } catch (err: any) {
         if (cancelled) return;
         if (err.name === 'NotAllowedError') {
@@ -170,8 +171,10 @@ const VideoInterview = () => {
       cancelled = true;
       if (audioEncoderRef.current) {
         audioEncoderRef.current.dispose();
+        audioEncoderRef.current = null;
       }
-      setAudioEncoderGetter(null);
+      // 不清空 audioEncoderGetter，因为它返回的是 ref
+      // ref 被清空后自然返回 null，无需额外清理
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
       }
@@ -236,7 +239,7 @@ const VideoInterview = () => {
       const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
       // 去掉 "data:image/jpeg;base64," 前缀，只发送纯 base64 数据，减小消息体积
       const base64Frame = dataUrl.split(',')[1] || '';
-      wsClient.sendVideoFrame(base64Frame);
+      wsClient.sendVideoFrame(base64Frame, Date.now());
       lastSentTimeRef.current = now;
     }
   }, [wsClient, isCameraEnabled, isModelReady]);

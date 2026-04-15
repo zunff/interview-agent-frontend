@@ -140,11 +140,19 @@ const InterviewForm = () => {
     setLoading(true);
     setError('');
     try {
-      // 通过 WebSocket 启动面试（不再使用 REST API）
+      // 通过 WebSocket 启动面试
       const wsClient = createWebSocketClient();
       setWsClient(wsClient);
       await wsClient.connect();
-      setInterviewStatus('进行中');
+
+      // 监听 session_created 消息，收到后再跳转
+      wsClient.on('session_created', (data: { sessionId: string }) => {
+        console.log('[InterviewForm] 会话创建:', data.sessionId);
+        setInterviewStatus('进行中');
+        router.push('/interview/session');
+      });
+
+      // 发送开始面试消息
       wsClient.sendStartInterview({
         resume,
         jobInfo,
@@ -152,7 +160,8 @@ const InterviewForm = () => {
         maxBusinessQuestions,
         maxFollowUps,
       });
-      router.push('/interview/session');
+
+      // 不在这里立即跳转，等待 session_created 消息
     } catch {
       setError('开始面试失败，请重试');
       setLoading(false);

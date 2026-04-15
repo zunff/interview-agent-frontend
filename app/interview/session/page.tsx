@@ -7,12 +7,14 @@ import { useAudioPlayback } from '../../../hooks/useAudioPlayback';
 import VideoInterview from '../../../components/VideoInterview';
 import ReportDisplay from '../../../components/ReportDisplay';
 import { Button } from '../../../components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 export default function InterviewSessionPage() {
   const router = useRouter();
   const {
     interviewStatus,
     wsClient,
+    isReady,
     setSessionId,
     setCurrentQuestion,
     addEvaluationResult,
@@ -21,6 +23,7 @@ export default function InterviewSessionPage() {
     setAnswerPhase,
     setAnswerStartTime,
     setInterviewPhase,
+    setIsReady,
   } = useInterviewStore();
 
   // 初始化音频播放
@@ -43,6 +46,8 @@ export default function InterviewSessionPage() {
         console.log('[Interview] 进入自我介绍阶段');
         // 确保自我介绍阶段状态正确设置
         setInterviewPhase('self_intro');
+        // 设置为已准备状态，可以开始面试
+        setIsReady(true);
         // self_intro 信号表示服务端已准备好，前端可以开始引导用户自我介绍
         // 录音启动逻辑在 useAudioPlayback 中处理
       },
@@ -93,7 +98,22 @@ export default function InterviewSessionPage() {
       wsClient.off('answer_received', handlers.answerReceived);
       wsClient.off('error', handlers.error);
     };
-  }, [wsClient, router, setSessionId, setCurrentQuestion, addEvaluationResult, setReport, setInterviewStatus, setAnswerPhase, setAnswerStartTime, setInterviewPhase]);
+  }, [wsClient, router, setSessionId, setCurrentQuestion, addEvaluationResult, setReport, setInterviewStatus, setAnswerPhase, setAnswerStartTime, setInterviewPhase, setIsReady]);
+
+  // 准备中加载界面
+  if (!isReady) {
+    return (
+      <div className="fixed inset-0 bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="size-12 text-primary animate-spin mx-auto" />
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold text-foreground">准备中</h2>
+            <p className="text-sm text-muted-foreground">正在初始化面试环境...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (interviewStatus === '已结束') {
     return (

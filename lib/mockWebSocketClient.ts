@@ -240,9 +240,18 @@ export class MockWebSocketClient {
       case 'answer_complete':
         await this.handleAnswerComplete();
         break;
+      case 'audio_start':
+        console.log('[MockWS] 收到 audio_start，时间戳:', message.startTimestampMs);
+        break;
       case 'video_frame':
       case 'audio_chunk':
-        // 静默消费
+        // 每 5 秒打印一次音频接收日志
+        this.audioChunkCount++;
+        const now = Date.now();
+        if (now - this.lastAudioLogTime >= 5000) {
+          console.log(`[MockWS] 累计收到 ${this.audioChunkCount} 个 audio_chunk`);
+          this.lastAudioLogTime = now;
+        }
         break;
       default:
         console.log('[MockWS] 收到消息:', message.type);

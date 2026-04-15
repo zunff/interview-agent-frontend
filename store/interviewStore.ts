@@ -14,6 +14,7 @@ interface InterviewState {
   currentQuestion: QuestionInfo | null;
   interviewStatus: InterviewStatus;
   interviewPhase: 'self_intro' | 'questioning';
+  isReady: boolean; // 是否已收到 self_intro 指令，准备开始面试
 
   // 评估结果
   evaluationResults: EvaluationResult[];
@@ -63,6 +64,7 @@ interface InterviewState {
   toggleMic: () => void;
   setAnswerPhase: (phase: 'waiting' | 'answering' | 'evaluating') => void;
   setInterviewPhase: (phase: 'self_intro' | 'questioning') => void;
+  setIsReady: (ready: boolean) => void;
   setAnswerStartTime: (time: number | null) => void;
   setElapsedTime: (time: number) => void;
   toggleQuestionPanel: () => void;
@@ -99,6 +101,9 @@ export const useInterviewStore = create<InterviewState>((set) => ({
   isQuestionPanelOpen: true,
   isEvaluationPanelOpen: false,
 
+  // 是否已收到 self_intro 指令
+  isReady: false,
+
   // 音频播放状态
   audioPlaybackState: {
     isPlaying: false,
@@ -133,6 +138,7 @@ export const useInterviewStore = create<InterviewState>((set) => ({
 
   setAnswerPhase: (answerPhase) => set({ answerPhase }),
   setInterviewPhase: (interviewPhase) => set({ interviewPhase }),
+  setIsReady: (isReady) => set({ isReady }),
   setAnswerStartTime: (answerStartTime) => set({ answerStartTime }),
   setElapsedTime: (elapsedTime) => set({ elapsedTime }),
 
