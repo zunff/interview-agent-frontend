@@ -23,7 +23,8 @@ export default function InterviewSessionPage() {
     setAnswerPhase,
     setAnswerStartTime,
     setInterviewPhase,
-    setIsReady,
+    setHasSelfIntro,
+    setHasJobAnalysisComplete,
   } = useInterviewStore();
 
   // 初始化音频播放
@@ -43,13 +44,18 @@ export default function InterviewSessionPage() {
         setSessionId(data.sessionId);
       },
       selfIntro: (_data: unknown) => {
-        console.log('[Interview] 进入自我介绍阶段');
+        console.log('[Interview] 收到 self_intro 信号');
         // 确保自我介绍阶段状态正确设置
         setInterviewPhase('self_intro');
-        // 设置为已准备状态，可以开始面试
-        setIsReady(true);
+        // 标记已收到 self_intro 信号
+        setHasSelfIntro(true);
         // self_intro 信号表示服务端已准备好，前端可以开始引导用户自我介绍
         // 录音启动逻辑在 useAudioPlayback 中处理
+      },
+      jobAnalysisComplete: (_data: unknown) => {
+        console.log('[Interview] 收到 job_analysis_complete 信号');
+        // 标记已收到 job_analysis_complete 信号
+        setHasJobAnalysisComplete(true);
       },
       newQuestion: (data: { content: string; questionType: string; questionIndex: number; isFollowUp: boolean }) => {
         console.log('[Interview] 收到新问题:', data.content.substring(0, 50));
@@ -83,6 +89,7 @@ export default function InterviewSessionPage() {
 
     wsClient.on('session_created', handlers.sessionCreated);
     wsClient.on('self_intro', handlers.selfIntro);
+    wsClient.on('job_analysis_complete', handlers.jobAnalysisComplete);
     wsClient.on('new_question', handlers.newQuestion);
     wsClient.on('evaluation_result', handlers.evaluationResult);
     wsClient.on('final_report', handlers.finalReport);
@@ -92,13 +99,14 @@ export default function InterviewSessionPage() {
     return () => {
       wsClient.off('session_created', handlers.sessionCreated);
       wsClient.off('self_intro', handlers.selfIntro);
+      wsClient.off('job_analysis_complete', handlers.jobAnalysisComplete);
       wsClient.off('new_question', handlers.newQuestion);
       wsClient.off('evaluation_result', handlers.evaluationResult);
       wsClient.off('final_report', handlers.finalReport);
       wsClient.off('answer_received', handlers.answerReceived);
       wsClient.off('error', handlers.error);
     };
-  }, [wsClient, router, setSessionId, setCurrentQuestion, addEvaluationResult, setReport, setInterviewStatus, setAnswerPhase, setAnswerStartTime, setInterviewPhase, setIsReady]);
+  }, [wsClient, router, setSessionId, setCurrentQuestion, addEvaluationResult, setReport, setInterviewStatus, setAnswerPhase, setAnswerStartTime, setInterviewPhase, setHasSelfIntro, setHasJobAnalysisComplete]);
 
   // 准备中加载界面
   if (!isReady) {

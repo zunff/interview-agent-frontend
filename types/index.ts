@@ -19,6 +19,7 @@ export type WebSocketMessageType =
   | 'self_intro_complete'
   | 'session_created'
   | 'self_intro'
+  | 'job_analysis_complete'
   | 'new_question'
   | 'evaluation_result'
   | 'final_report'
@@ -34,6 +35,13 @@ export type WebSocketMessageType =
 // 服务端 → 客户端：自我介绍阶段信号
 export interface SelfIntroMessage {
   type: 'self_intro';
+  payload: Record<string, never>;
+  timestamp?: number;
+}
+
+// 服务端 → 客户端：岗位分析完成信号
+export interface JobAnalysisCompleteMessage {
+  type: 'job_analysis_complete';
   payload: Record<string, never>;
   timestamp?: number;
 }
@@ -170,6 +178,7 @@ export type WebSocketMessage =
   | SelfIntroCompleteMessage
   | SessionCreatedMessage
   | SelfIntroMessage
+  | JobAnalysisCompleteMessage
   | NewQuestionMessage
   | EvaluationResultMessage
   | FinalReportMessage

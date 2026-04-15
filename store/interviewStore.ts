@@ -14,7 +14,10 @@ interface InterviewState {
   currentQuestion: QuestionInfo | null;
   interviewStatus: InterviewStatus;
   interviewPhase: 'self_intro' | 'questioning';
-  isReady: boolean; // 是否已收到 self_intro 指令，准备开始面试
+  hasSelfIntro: boolean; // 是否已收到 self_intro 指令
+  hasJobAnalysisComplete: boolean; // 是否已收到 job_analysis_complete 指令
+  isReady: boolean; // 两个信号都收到后才能开始（hasSelfIntro && hasJobAnalysisComplete）
+  isEncoderReady: boolean; // AudioEncoderManager 是否初始化完成
 
   // 评估结果
   evaluationResults: EvaluationResult[];
@@ -64,7 +67,10 @@ interface InterviewState {
   toggleMic: () => void;
   setAnswerPhase: (phase: 'waiting' | 'answering' | 'evaluating') => void;
   setInterviewPhase: (phase: 'self_intro' | 'questioning') => void;
+  setHasSelfIntro: (received: boolean) => void;
+  setHasJobAnalysisComplete: (received: boolean) => void;
   setIsReady: (ready: boolean) => void;
+  setIsEncoderReady: (ready: boolean) => void;
   setAnswerStartTime: (time: number | null) => void;
   setElapsedTime: (time: number) => void;
   toggleQuestionPanel: () => void;
@@ -101,8 +107,11 @@ export const useInterviewStore = create<InterviewState>((set) => ({
   isQuestionPanelOpen: true,
   isEvaluationPanelOpen: false,
 
-  // 是否已收到 self_intro 指令
+  // 自我介绍阶段信号接收状态
+  hasSelfIntro: false,
+  hasJobAnalysisComplete: false,
   isReady: false,
+  isEncoderReady: false,
 
   // 音频播放状态
   audioPlaybackState: {
@@ -138,7 +147,18 @@ export const useInterviewStore = create<InterviewState>((set) => ({
 
   setAnswerPhase: (answerPhase) => set({ answerPhase }),
   setInterviewPhase: (interviewPhase) => set({ interviewPhase }),
+  setHasSelfIntro: (hasSelfIntro) => set((state) => {
+    const newState = { ...state, hasSelfIntro };
+    newState.isReady = newState.hasSelfIntro && newState.hasJobAnalysisComplete;
+    return newState;
+  }),
+  setHasJobAnalysisComplete: (hasJobAnalysisComplete) => set((state) => {
+    const newState = { ...state, hasJobAnalysisComplete };
+    newState.isReady = newState.hasSelfIntro && newState.hasJobAnalysisComplete;
+    return newState;
+  }),
   setIsReady: (isReady) => set({ isReady }),
+  setIsEncoderReady: (isEncoderReady) => set({ isEncoderReady }),
   setAnswerStartTime: (answerStartTime) => set({ answerStartTime }),
   setElapsedTime: (elapsedTime) => set({ elapsedTime }),
 
@@ -172,6 +192,10 @@ export const useInterviewStore = create<InterviewState>((set) => ({
       currentQuestion: null,
       interviewStatus: '准备中',
       interviewPhase: 'self_intro',
+      hasSelfIntro: false,
+      hasJobAnalysisComplete: false,
+      isReady: false,
+      isEncoderReady: false,
       evaluationResults: [],
       currentEvaluation: null,
       report: null,

@@ -55,6 +55,7 @@ export class WebSocketClient {
   // 日志节流
   private binaryLogCount = 0;
   private lastBinaryLogTime = 0;
+  private lastAudioChunkLogTime = 0;
 
   constructor() {}
 
@@ -215,10 +216,11 @@ export class WebSocketClient {
     };
     this.send(message);
 
-    // 每 5 秒打印一次日志
+    // 每 10 秒打印一次发送日志，避免高频刷屏
     const now = Date.now();
-    if (now - this.lastBinaryLogTime >= 5000) {
+    if (now - this.lastAudioChunkLogTime >= 10000) {
       console.log(`[WS] 发送 audio_chunk, 音频数据大小: ${audio.length} bytes (base64)`);
+      this.lastAudioChunkLogTime = now;
     }
   }
 
@@ -394,6 +396,7 @@ export class WebSocketClient {
         return typeof message.payload === 'object' &&
                typeof message.payload.sessionId === 'string';
       case 'self_intro':
+      case 'job_analysis_complete':
         return typeof message.payload === 'object';
       case 'new_question':
         return typeof message.payload === 'object' &&

@@ -50,6 +50,10 @@ export class MockWebSocketClient {
     maxFollowUps: number;
   } | null = null;
 
+  // 音频接收统计
+  private audioChunkCount = 0;
+  private lastAudioLogTime = 0;
+
   // 模拟 WebSocket 对象（用于兼容现有代码）
   private mockSocket = {
     readyState: 0, // WebSocket.OPEN
@@ -115,6 +119,13 @@ export class MockWebSocketClient {
    * 发送视频帧（静默消费）
    */
   sendVideoFrame(_frame: string): void {
+    // 静默消费，不模拟服务器响应
+  }
+
+  /**
+   * 发送音频开始信号（静默消费）
+   */
+  sendAudioStart(_startTimestampMs: number): void {
     // 静默消费，不模拟服务器响应
   }
 
@@ -293,6 +304,11 @@ export class MockWebSocketClient {
 
     // 发送 self_intro
     this.emit('self_intro', {});
+
+    await sleep(100);
+
+    // 发送 job_analysis_complete
+    this.emit('job_analysis_complete', {});
   }
 
   /**

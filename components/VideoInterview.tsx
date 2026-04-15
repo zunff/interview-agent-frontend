@@ -30,11 +30,13 @@ const VideoInterview = () => {
     elapsedTime,
     isRecordingAudio,
     interviewPhase,
+    isReady,
     toggleCamera,
     toggleMic,
     setAnswerPhase,
     setElapsedTime,
     setAudioEncoderGetter,
+    setIsEncoderReady,
   } = store;
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -153,6 +155,10 @@ const VideoInterview = () => {
         // 注册 encoder getter，让 useAudioPlayback 可以获取 encoder 引用
         setAudioEncoderGetter(() => audioEncoderRef.current);
         console.log('[VideoInterview] 已注册 AudioEncoder getter');
+
+        // 标记 encoder 就绪，可以开始录音
+        setIsEncoderReady(true);
+        console.log('[VideoInterview] AudioEncoder 已就绪');
       } catch (err: any) {
         if (cancelled) return;
         if (err.name === 'NotAllowedError') {
@@ -169,6 +175,7 @@ const VideoInterview = () => {
 
     return () => {
       cancelled = true;
+      setIsEncoderReady(false);
       if (audioEncoderRef.current) {
         audioEncoderRef.current.dispose();
         audioEncoderRef.current = null;
@@ -179,7 +186,7 @@ const VideoInterview = () => {
         streamRef.current.getTracks().forEach((t) => t.stop());
       }
     };
-  }, [uint8ToBase64]);
+  }, [uint8ToBase64, setIsEncoderReady]);
 
   const captureKeyFrame = useCallback(() => {
     if (!videoRef.current || !canvasRef.current || !wsClient) return;
@@ -292,6 +299,12 @@ const VideoInterview = () => {
   }, [toggleMic]);
 
   const handleAnswerComplete = useCallback(() => {
+    // 自我介绍阶段：必须收到两个信号才能结束
+    if (interviewPhase === 'self_intro' && !isReady) {
+      console.warn('[VideoInterview] 等待岗位分析完成才能结束自我介绍');
+      return;
+    }
+
     if (!wsClient || answerPhase !== 'answering') return;
 
     // 停止发送音频数据
@@ -305,7 +318,7 @@ const VideoInterview = () => {
     setAnswerPhase('evaluating');
 
     lastBlendshapesRef.current = null;
-  }, [wsClient, answerPhase, interviewPhase, setAnswerPhase]);
+  }, [wsClient, answerPhase, interviewPhase, isReady, setAnswerPhase]);
 
   const handleExit = useCallback(() => {
     if (audioEncoderRef.current) {
@@ -526,10 +539,10 @@ const VideoInterview = () => {
         <Button
           size="lg"
           onClick={handleAnswerComplete}
-          disabled={answerPhase !== 'answering'}
+          disabled={interviewPhase === 'self_intro' ? !isReady : answerPhase !== 'answering'}
           className={cn(
             'px-12 py-4 rounded-2xl font-semibold transition-all duration-200 shadow-lg',
-            answerPhase === 'answering'
+            (interviewPhase === 'self_intro' ? isReady : answerPhase === 'answering')
               ? 'bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:shadow-xl hover:-translate-y-0.5 hover:from-primary hover:to-primary/90'
               : 'bg-muted text-muted-foreground cursor-not-allowed shadow-none'
           )}

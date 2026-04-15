@@ -39,9 +39,12 @@ export function useAudioPlayback() {
   const vadRef = useRef<VoiceActivityDetector | null>(null);
   const interruptedRef = useRef(false);
   const beepAudioContextRef = useRef<AudioContext | null>(null);
+  const ttsChunkCountRef = useRef(0);
+  const ttsChunkBytesRef = useRef(0);
+  const ttsChunkLogTimeRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const { wsClient, setAudioError, resetAudioState, setAnswerPhase, setAnswerStartTime, setIsRecordingAudio } = useInterviewStore();
+  const { wsClient, hasSelfIntro, isEncoderReady, setAudioError, resetAudioState, setAnswerPhase, setAnswerStartTime, setIsRecordingAudio } = useInterviewStore();
 
   /**
    * 播放提示音（880Hz 正弦波，200ms）。
@@ -82,6 +85,7 @@ export function useAudioPlayback() {
 
   /**
    * 开始录音：发送 audio_start 信号 + 启动 encoder 发送 + 更新 store 状态。
+   * 注意：此函数应在 isEncoderReady 为 true 时调用，确保 encoder 已初始化完成。
    */
   const startRecording = useCallback(() => {
     const wsClient = useInterviewStore.getState().wsClient;
@@ -97,7 +101,6 @@ export function useAudioPlayback() {
     }
 
     // 启动 encoder 发送音频数据
-    // 如果 encoder 不存在，延迟重试（等待 VideoInterview 初始化完成）
     if (encoder) {
       console.log('[useAudioPlayback] 调用 encoder.startSending()');
       encoder.startSending();
@@ -108,22 +111,8 @@ export function useAudioPlayback() {
       setIsRecording(true);
       console.log('[useAudioPlayback] 开始录音');
     } else {
-      console.warn('[useAudioPlayback] encoder 为空，500ms 后重试...');
-      setTimeout(() => {
-        const retryEncoder = useInterviewStore.getState()._audioEncoderGetter?.();
-        if (retryEncoder) {
-          console.log('[useAudioPlayback] 重试成功，调用 encoder.startSending()');
-          retryEncoder.startSending();
-
-          setAnswerPhase('answering');
-          setAnswerStartTime(Date.now());
-          setIsRecordingAudio(true);
-          setIsRecording(true);
-          console.log('[useAudioPlayback] 开始录音');
-        } else {
-          console.error('[useAudioPlayback] 重试失败，encoder 仍然为空！');
-        }
-      }, 500);
+      // 理论上不应该发生，因为 isEncoderReady 保证 encoder 已就绪
+      console.error('[useAudioPlayback] encoder 为空！isEncoderReady 应该为 false');
     }
   }, [setAnswerPhase, setAnswerStartTime, setIsRecordingAudio]);
 
@@ -176,6 +165,10 @@ export function useAudioPlayback() {
     // 创建稳定引用的处理器
     const handlers: AudioHandlers = {
       onStart: () => {
+        ttsChunkCountRef.current = 0;
+        ttsChunkBytesRef.current = 0;
+        ttsChunkLogTimeRef.current = 0;
+        console.log('[useAudioPlayback] 收到 audio_question_start，准备接收并播放 TTS 二进制音频');
         resetAudioState();
         manager?.stop();
         interruptedRef.current = false;
@@ -213,9 +206,20 @@ export function useAudioPlayback() {
         }
       },
       onChunk: (data: ArrayBuffer) => {
+        ttsChunkCountRef.current += 1;
+        ttsChunkBytesRef.current += data.byteLength;
+        const now = Date.now();
+        if (now - ttsChunkLogTimeRef.current >= 1000) {
+          console.log(
+            `[useAudioPlayback] 收到 TTS 二进制 chunk: +${ttsChunkCountRef.current} 帧, 累计 ${ttsChunkBytesRef.current} bytes, 当前帧 ${data.byteLength} bytes`,
+          );
+          ttsChunkLogTimeRef.current = now;
+          ttsChunkCountRef.current = 0;
+        }
         manager?.addChunk(data);
       },
       onEnd: async () => {
+        console.log(`[useAudioPlayback] 收到 audio_question_end，TTS 累计接收 ${ttsChunkBytesRef.current} bytes`);
         if (interruptedRef.current) return; // 已被 VAD 打断，忽略
 
         // 等待播放队列清空
@@ -247,21 +251,12 @@ export function useAudioPlayback() {
       },
     };
 
-    // 自我介绍阶段：直接启动录音（没有 TTS 播放）
-    const handleSelfIntro = () => {
-      console.log('[useAudioPlayback] 自我介绍阶段，启动录音');
-      resetAudioState();
-      interruptedRef.current = false;
-      startRecording();
-    };
-
     handlersRef.current = handlers;
 
     wsClient.on('audio_question_start', handlers.onStart);
     wsClient.onBinary('audio_question_chunk', handlers.onChunk);
     wsClient.on('audio_question_end', handlers.onEnd);
     wsClient.on('audio_question_error', handlers.onError);
-    wsClient.on('self_intro', handleSelfIntro);
 
     return () => {
       // 清除 encoder 上的 VAD callback
@@ -282,7 +277,6 @@ export function useAudioPlayback() {
       wsClient.offBinary('audio_question_chunk', handlers.onChunk);
       wsClient.off('audio_question_end', handlers.onEnd);
       wsClient.off('audio_question_error', handlers.onError);
-      wsClient.off('self_intro', handleSelfIntro);
 
       if (beepAudioContextRef.current) {
         beepAudioContextRef.current.close().catch(() => {});
@@ -290,6 +284,19 @@ export function useAudioPlayback() {
       }
     };
   }, [wsClient, setAudioError, resetAudioState, playBeep, startRecording, waitForPlaybackComplete]);
+
+  // 自我介绍阶段：等待 encoder 就绪且收到 self_intro 后启动录音
+  useEffect(() => {
+    if (isEncoderReady && hasSelfIntro && !isRecording) {
+      const interviewPhase = useInterviewStore.getState().interviewPhase;
+      if (interviewPhase === 'self_intro') {
+        console.log('[useAudioPlayback] encoder 已就绪且收到 self_intro，启动录音');
+        resetAudioState();
+        interruptedRef.current = false;
+        startRecording();
+      }
+    }
+  }, [isEncoderReady, hasSelfIntro, isRecording, resetAudioState, startRecording]);
 
   return { isPlaying, isRecording, stopRecording };
 }
