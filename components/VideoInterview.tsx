@@ -37,6 +37,7 @@ const VideoInterview = () => {
     setElapsedTime,
     setAudioEncoderGetter,
     setIsEncoderReady,
+    clearState,
   } = store;
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -327,8 +328,9 @@ const VideoInterview = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
     }
+    clearState();
     router.push('/');
-  }, [router]);
+  }, [clearState, router]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -409,9 +411,6 @@ const VideoInterview = () => {
             {isQuestionExpanded ? '隐藏问题' : '显示问题'}
           </Button>
 
-          <Button variant="ghost" size="sm" onClick={handleExit} className="text-muted-foreground hover:text-foreground">
-            退出
-          </Button>
         </div>
       </header>
 

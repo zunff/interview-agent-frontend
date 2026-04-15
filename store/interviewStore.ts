@@ -148,14 +148,20 @@ export const useInterviewStore = create<InterviewState>((set) => ({
   setAnswerPhase: (answerPhase) => set({ answerPhase }),
   setInterviewPhase: (interviewPhase) => set({ interviewPhase }),
   setHasSelfIntro: (hasSelfIntro) => set((state) => {
-    const newState = { ...state, hasSelfIntro };
-    newState.isReady = newState.hasSelfIntro && newState.hasJobAnalysisComplete;
-    return newState;
+    const newHasSelfIntro = hasSelfIntro;
+    const newHasJobAnalysisComplete = state.hasJobAnalysisComplete;
+    return {
+      hasSelfIntro: newHasSelfIntro,
+      isReady: newHasSelfIntro && newHasJobAnalysisComplete,
+    };
   }),
   setHasJobAnalysisComplete: (hasJobAnalysisComplete) => set((state) => {
-    const newState = { ...state, hasJobAnalysisComplete };
-    newState.isReady = newState.hasSelfIntro && newState.hasJobAnalysisComplete;
-    return newState;
+    const newHasSelfIntro = state.hasSelfIntro;
+    const newHasJobAnalysisComplete = hasJobAnalysisComplete;
+    return {
+      hasJobAnalysisComplete: newHasJobAnalysisComplete,
+      isReady: newHasSelfIntro && newHasJobAnalysisComplete,
+    };
   }),
   setIsReady: (isReady) => set({ isReady }),
   setIsEncoderReady: (isEncoderReady) => set({ isEncoderReady }),

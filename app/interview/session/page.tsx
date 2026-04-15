@@ -14,6 +14,7 @@ export default function InterviewSessionPage() {
   const {
     interviewStatus,
     wsClient,
+    hasSelfIntro,
     isReady,
     setSessionId,
     setCurrentQuestion,
@@ -37,6 +38,9 @@ export default function InterviewSessionPage() {
       return;
     }
 
+    console.log('[Interview] useEffect 执行，开始注册事件监听器');
+    console.log('[Interview] wsClient 类型:', wsClient.constructor.name);
+
     // 在 effect 内部创建 handler，确保注册和清理使用同一个引用
     const handlers = {
       sessionCreated: (data: { sessionId: string }) => {
@@ -47,6 +51,8 @@ export default function InterviewSessionPage() {
         console.log('[Interview] 收到 self_intro 信号');
         // 确保自我介绍阶段状态正确设置
         setInterviewPhase('self_intro');
+        // 清理旧题目，避免重新进入面试时短暂显示上一轮问题
+        setCurrentQuestion(null);
         // 标记已收到 self_intro 信号
         setHasSelfIntro(true);
         // self_intro 信号表示服务端已准备好，前端可以开始引导用户自我介绍
@@ -96,6 +102,8 @@ export default function InterviewSessionPage() {
     wsClient.on('answer_received', handlers.answerReceived);
     wsClient.on('error', handlers.error);
 
+    console.log('[Interview] 事件监听器注册完成');
+
     return () => {
       wsClient.off('session_created', handlers.sessionCreated);
       wsClient.off('self_intro', handlers.selfIntro);
@@ -108,8 +116,8 @@ export default function InterviewSessionPage() {
     };
   }, [wsClient, router, setSessionId, setCurrentQuestion, addEvaluationResult, setReport, setInterviewStatus, setAnswerPhase, setAnswerStartTime, setInterviewPhase, setHasSelfIntro, setHasJobAnalysisComplete]);
 
-  // 准备中加载界面
-  if (!isReady) {
+  // 准备中加载界面：等待 self_intro 信号
+  if (!hasSelfIntro) {
     return (
       <div className="fixed inset-0 bg-background flex items-center justify-center">
         <div className="text-center space-y-4">

@@ -300,7 +300,9 @@ export class MockWebSocketClient {
     // 发送 session_created
     this.emit('session_created', { sessionId: this.sessionId });
 
-    await sleep(150);
+    // 等待前端跳转到面试页面并注册事件监听器
+    // 跳转 + useEffect 执行 + 事件注册需要一定时间
+    await sleep(800);
 
     // 发送 self_intro
     this.emit('self_intro', {});
@@ -400,8 +402,10 @@ export class MockWebSocketClient {
    * 触发消息事件
    */
   private emit(type: string, payload: unknown): void {
+    console.log(`[MockWS] 发送信号: ${type}`);
     const handlers = this.messageHandlers.get(type);
     if (handlers) {
+      console.log(`[MockWS] 找到 ${handlers.length} 个处理器 for ${type}`);
       handlers.forEach((handler) => {
         try {
           handler(payload);
@@ -409,6 +413,8 @@ export class MockWebSocketClient {
           console.error(`[MockWS] 处理 ${type} 消息时出错:`, error);
         }
       });
+    } else {
+      console.warn(`[MockWS] 没有注册处理器 for ${type}`);
     }
   }
 }

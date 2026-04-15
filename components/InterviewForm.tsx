@@ -19,9 +19,19 @@ import {
   Play
 } from 'lucide-react';
 
+const FILE_PICKER_DEBOUNCE_MS = 800;
+
 const InterviewForm = () => {
   const router = useRouter();
-  const { setInterviewStatus, setWsClient } = useInterviewStore();
+  const {
+    setInterviewStatus,
+    setWsClient,
+    clearState,
+    setHasSelfIntro,
+    setHasJobAnalysisComplete,
+    setInterviewPhase,
+    setCurrentQuestion,
+  } = useInterviewStore();
 
   const [resume, setResume] = useState('');
   const [jobInfo, setJobInfo] = useState('');
@@ -40,6 +50,14 @@ const InterviewForm = () => {
   const [showSettings, setShowSettings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const jobInfoRef = useRef<HTMLTextAreaElement>(null);
+  const lastFilePickerOpenAtRef = useRef(0);
+
+  const openFilePicker = () => {
+    const now = Date.now();
+    if (now - lastFilePickerOpenAtRef.current < FILE_PICKER_DEBOUNCE_MS) return;
+    lastFilePickerOpenAtRef.current = now;
+    fileInputRef.current?.click();
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -140,6 +158,9 @@ const InterviewForm = () => {
     setLoading(true);
     setError('');
     try {
+      // 防止上一轮会话残留状态影响新面试
+      clearState();
+
       // 通过 WebSocket 启动面试
       const wsClient = createWebSocketClient();
       setWsClient(wsClient);
@@ -150,6 +171,19 @@ const InterviewForm = () => {
         console.log('[InterviewForm] 会话创建:', data.sessionId);
         setInterviewStatus('进行中');
         router.push('/interview/session');
+      });
+
+      // 提前注册关键监听器，避免路由跳转过程中错过信号
+      wsClient.on('self_intro', () => {
+        console.log('[InterviewForm] 收到 self_intro');
+        setInterviewPhase('self_intro');
+        setCurrentQuestion(null);
+        setHasSelfIntro(true);
+      });
+
+      wsClient.on('job_analysis_complete', () => {
+        console.log('[InterviewForm] 收到 job_analysis_complete');
+        setHasJobAnalysisComplete(true);
       });
 
       // 发送开始面试消息
@@ -198,7 +232,7 @@ const InterviewForm = () => {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={openFilePicker}
             >
               <input
                 ref={fileInputRef}
