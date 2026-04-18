@@ -103,6 +103,7 @@ export class MockWebSocketClient {
     maxTechnicalQuestions?: number;
     maxBusinessQuestions?: number;
     maxFollowUps?: number;
+    positionLevel?: StartInterviewMessage['positionLevel'];
   }): void {
     const message: StartInterviewMessage = {
       type: 'start_interview',
@@ -111,6 +112,7 @@ export class MockWebSocketClient {
       maxTechnicalQuestions: data.maxTechnicalQuestions,
       maxBusinessQuestions: data.maxBusinessQuestions,
       maxFollowUps: data.maxFollowUps,
+      ...(data.positionLevel ? { positionLevel: data.positionLevel } : {}),
     };
     this.send(message);
   }

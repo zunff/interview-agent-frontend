@@ -177,7 +177,14 @@ export class WebSocketClient {
   }
 
   // 启动面试
-  sendStartInterview(data: { resume: string; jobInfo: string; maxTechnicalQuestions?: number; maxBusinessQuestions?: number; maxFollowUps?: number }): void {
+  sendStartInterview(data: {
+    resume: string;
+    jobInfo: string;
+    maxTechnicalQuestions?: number;
+    maxBusinessQuestions?: number;
+    maxFollowUps?: number;
+    positionLevel?: StartInterviewMessage['positionLevel'];
+  }): void {
     const message: StartInterviewMessage = {
       type: 'start_interview',
       resume: data.resume,
@@ -185,6 +192,7 @@ export class WebSocketClient {
       maxTechnicalQuestions: data.maxTechnicalQuestions,
       maxBusinessQuestions: data.maxBusinessQuestions,
       maxFollowUps: data.maxFollowUps,
+      ...(data.positionLevel ? { positionLevel: data.positionLevel } : {}),
     };
     this.send(message);
   }

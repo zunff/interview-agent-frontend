@@ -46,6 +46,9 @@ export interface JobAnalysisCompleteMessage {
   timestamp?: number;
 }
 
+// 岗位级别（与 WebSocket start_interview 约定一致）
+export type PositionLevel = 'junior' | 'mid' | 'senior' | 'expert';
+
 // 客户端 → 服务端
 
 export interface StartInterviewMessage {
@@ -55,6 +58,7 @@ export interface StartInterviewMessage {
   maxTechnicalQuestions?: number;
   maxBusinessQuestions?: number;
   maxFollowUps?: number;
+  positionLevel?: PositionLevel;
 }
 
 export interface AudioStartMessage {

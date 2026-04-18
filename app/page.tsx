@@ -43,7 +43,7 @@ export default function Home() {
   useEffect(() => {
     const quote = motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
     setDisplayedQuote(quote);
-    
+
     let charIndex = 0;
     const typingInterval = setInterval(() => {
       if (charIndex < quote.length) {
@@ -94,7 +94,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-        
+
         <InterviewForm />
       </div>
     </main>
