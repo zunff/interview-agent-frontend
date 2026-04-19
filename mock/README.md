@@ -25,7 +25,7 @@ mock/
 ├── data/
 │   ├── questions.ts     # 中文面试题库（技术题 + 业务题 + 追问）
 │   ├── evaluations.ts   # 评估结果生成器（随机但合理的分数）
-│   └── report.ts        # Markdown 报告生成器
+│   └── report.ts        # Mock 报告：通过 /api/mock-report 读取 docs/final_report.md
 └── README.md            # 本文档
 
 lib/
@@ -71,4 +71,4 @@ Mock 模式下，页面右下角显示 "Mock Mode" 徽章，便于区分。
 
 - Mock 模式不支持真实 TTS 音频播放（使用 `audio_question_error` 降级）
 - 视频/音频数据被静默消费，不模拟处理
-- 报告页面 `/report/[sessionId]` 会生成模拟报告
+- 最终报告正文来自仓库内 `docs/final_report.md`（请保持去敏后的示例内容），由 `GET /api/mock-report` 在开发 Mock 下提供，不嵌入前端 bundle

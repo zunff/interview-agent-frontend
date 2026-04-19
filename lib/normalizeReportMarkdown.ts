@@ -62,7 +62,11 @@ export function normalizeFollowUpNumberedLists(markdown: string): string {
     }
 
     if (inFollowUp) {
-      if (trimmed.startsWith('---') || trimmed.startsWith('### ')) {
+      if (
+        trimmed.startsWith('---') ||
+        trimmed.startsWith('### ') ||
+        trimmed.startsWith('#### ')
+      ) {
         inFollowUp = false;
         n = 0;
         out.push(line);

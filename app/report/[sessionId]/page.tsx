@@ -29,7 +29,7 @@ export default function ReportPage() {
             const mockEvaluations = Array.from({ length: 3 }, (_, i) =>
               generateEvaluation(i + 1, '模拟面试问题'),
             );
-            const mockReport = generateMockReport(sessionId, mockEvaluations);
+            const mockReport = await generateMockReport(sessionId, mockEvaluations);
             setReport(mockReport);
             return;
           }

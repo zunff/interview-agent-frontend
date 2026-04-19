@@ -1,5 +1,4 @@
-import { useMemo, useRef } from 'react';
-import type { MutableRefObject } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useInterviewStore } from '../store/interviewStore';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -9,16 +8,14 @@ import { cn } from '../lib/utils';
 import { normalizeReportMarkdown } from '../lib/normalizeReportMarkdown';
 import type { TocItem } from '../lib/reportToc';
 import { extractReportToc } from '../lib/reportToc';
+import { scrollToReportHeading } from '../lib/scrollToReportHeading';
 import { Card, CardContent } from './ui/card';
 import { ReportTocNav } from './ReportTocNav';
 
-/** 不含 h1–h3（由 buildReportMarkdownComponents 注入 id） */
+const headingScrollClass = 'scroll-mt-[var(--report-anchor-offset)]';
+
+/** 不含 h1–h4（由 buildReportMarkdownComponents 注入 id） */
 const reportMarkdownBodyComponents: Components = {
-  h4: ({ children, ...props }) => (
-    <h4 className="not-prose mt-8 mb-2 text-base font-semibold text-foreground" {...props}>
-      {children}
-    </h4>
-  ),
   table: ({ children, ...props }) => (
     <div className="not-prose my-8 overflow-x-auto rounded-xl border border-border/90 bg-muted/25 shadow-sm ring-1 ring-black/[0.04] dark:bg-muted/15 dark:ring-white/[0.06]">
       <table
@@ -156,37 +153,54 @@ const reportMarkdownBodyComponents: Components = {
 
 function buildReportMarkdownComponents(
   toc: TocItem[],
-  cursorRef: MutableRefObject<number>,
 ): Components {
-  const take = (depth: 1 | 2 | 3): TocItem | undefined => {
-    const i = cursorRef.current;
-    if (i >= toc.length) return undefined;
-    const item = toc[i];
-    if (item.depth !== depth) return undefined;
-    cursorRef.current += 1;
-    return item;
+  const idByOffset = new Map<number, string>();
+  for (const item of toc) {
+    if (item.offset >= 0) idByOffset.set(item.offset, item.id);
+  }
+
+  const resolveHeadingId = (
+    depth: 1 | 2 | 3 | 4,
+    node?: { position?: { start?: { offset?: number } } },
+  ): string | undefined => {
+    const offset = node?.position?.start?.offset;
+    if (typeof offset === 'number') {
+      const found = idByOffset.get(offset);
+      if (found) return found;
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.warn('[report-toc] missing id mapping for heading', { depth, offset });
+    }
+    return undefined;
   };
 
   return {
     ...reportMarkdownBodyComponents,
-    h1: ({ children, ...props }) => {
-      const item = take(1);
+    h1: ({ children, node, ...props }) => {
+      const headingId = resolveHeadingId(1, node);
       return (
         <h1
-          id={item?.id}
-          className="not-prose mb-8 scroll-mt-28 text-balance border-b border-border pb-6 text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
+          id={headingId}
+          className={cn(
+            'not-prose mb-8 text-balance border-b border-border pb-6 text-3xl font-bold tracking-tight text-foreground sm:text-4xl',
+            headingScrollClass,
+          )}
           {...props}
         >
           {children}
         </h1>
       );
     },
-    h2: ({ children, ...props }) => {
-      const item = take(2);
+    h2: ({ children, node, ...props }) => {
+      const headingId = resolveHeadingId(2, node);
       return (
         <h2
-          id={item?.id}
-          className="not-prose mt-12 mb-5 flex scroll-mt-28 items-start gap-3 text-xl font-semibold tracking-tight text-foreground first:mt-0 sm:text-2xl"
+          id={headingId}
+          className={cn(
+            'not-prose mt-12 mb-5 flex items-start gap-3 text-xl font-semibold tracking-tight text-foreground first:mt-0 sm:text-2xl',
+            headingScrollClass,
+          )}
           {...props}
         >
           <span
@@ -197,16 +211,34 @@ function buildReportMarkdownComponents(
         </h2>
       );
     },
-    h3: ({ children, ...props }) => {
-      const item = take(3);
+    h3: ({ children, node, ...props }) => {
+      const headingId = resolveHeadingId(3, node);
       return (
         <h3
-          id={item?.id}
-          className="not-prose mt-10 mb-3 scroll-mt-28 text-balance text-lg font-semibold leading-snug text-foreground sm:text-xl"
+          id={headingId}
+          className={cn(
+            'not-prose mt-10 mb-3 text-balance text-lg font-semibold leading-snug text-foreground sm:text-xl',
+            headingScrollClass,
+          )}
           {...props}
         >
           {children}
         </h3>
+      );
+    },
+    h4: ({ children, node, ...props }) => {
+      const headingId = resolveHeadingId(4, node);
+      return (
+        <h4
+          id={headingId}
+          className={cn(
+            'not-prose mt-8 mb-2 text-base font-semibold text-foreground',
+            headingScrollClass,
+          )}
+          {...props}
+        >
+          {children}
+        </h4>
       );
     },
   };
@@ -214,7 +246,6 @@ function buildReportMarkdownComponents(
 
 const ReportDisplay = () => {
   const { report } = useInterviewStore();
-  const headingCursorRef = useRef(0);
 
   const reportMd = useMemo(
     () => (report ? normalizeReportMarkdown(report) : ''),
@@ -223,10 +254,14 @@ const ReportDisplay = () => {
 
   const toc = useMemo(() => (reportMd ? extractReportToc(reportMd) : []), [reportMd]);
 
-  const markdownComponents = useMemo(
-    () => buildReportMarkdownComponents(toc, headingCursorRef),
-    [toc],
-  );
+  const markdownComponents = buildReportMarkdownComponents(toc);
+
+  useEffect(() => {
+    const hash = typeof window !== 'undefined' ? window.location.hash.slice(1) : '';
+    if (!hash || !hash.startsWith('report-heading-')) return;
+    const t = window.setTimeout(() => scrollToReportHeading(hash), 100);
+    return () => window.clearTimeout(t);
+  }, [reportMd]);
 
   if (!report) {
     return (
@@ -239,9 +274,7 @@ const ReportDisplay = () => {
     );
   }
 
-  headingCursorRef.current = 0;
-
-  const tocNavItems = toc.filter((t) => t.depth >= 2);
+  const tocNavItems = toc.filter((t) => t.depth === 4);
 
   return (
     <div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:gap-10">

@@ -88,6 +88,8 @@
   --sidebar-ring: #0891B2;
   --scrollbar-thumb: rgba(0, 0, 0, 0.2);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
+  /** 报告锚点滚动时减去顶栏后的偏移（与 ReportTocNav / scrollToReportHeading 一致） */
+  --report-anchor-offset: 6.75rem;
 }
 
 /* ─── Dark mode ─────────────────────────────────────────── */

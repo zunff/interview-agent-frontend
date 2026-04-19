@@ -410,7 +410,7 @@ export class MockWebSocketClient {
 
     await sleep(500);
 
-    const report = generateMockReport(this.sessionId, this.evaluations);
+    const report = await generateMockReport(this.sessionId, this.evaluations);
     this.emit('final_report', { report });
   }
 
