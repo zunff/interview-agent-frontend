@@ -56,6 +56,7 @@ export class WebSocketClient {
   private binaryLogCount = 0;
   private lastBinaryLogTime = 0;
   private lastAudioChunkLogTime = 0;
+  private lastVideoFrameLogTime = 0;
 
   constructor() {}
 
@@ -214,6 +215,14 @@ export class WebSocketClient {
       timestampMs,
     };
     this.send(message);
+
+    const now = Date.now();
+    if (now - this.lastVideoFrameLogTime >= 5000) {
+      console.log(
+        `[WS] 发送 video_frame, timestampMs: ${timestampMs}, 帧数据大小: ${frame.length} chars (base64)`
+      );
+      this.lastVideoFrameLogTime = now;
+    }
   }
 
   // 发送音频块

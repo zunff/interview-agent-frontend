@@ -26,6 +26,11 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** 自我介绍结束后，模拟后端生成首题再推送 `new_question` 的等待时间 */
+const MOCK_DELAY_BEFORE_FIRST_QUESTION_MS = 10_000;
+/** 每题点击「回答完毕」后，模拟后端 LLM 思考再推送下一题 */
+const MOCK_DELAY_LLM_BEFORE_NEXT_QUESTION_MS = 3_000;
+
 /**
  * 模拟的 WebSocket 状态
  */
@@ -53,6 +58,7 @@ export class MockWebSocketClient {
   // 音频接收统计
   private audioChunkCount = 0;
   private lastAudioLogTime = 0;
+  private lastVideoFrameLogTime = 0;
 
   // 模拟 WebSocket 对象（用于兼容现有代码）
   private mockSocket = {
@@ -118,10 +124,16 @@ export class MockWebSocketClient {
   }
 
   /**
-   * 发送视频帧（静默消费）
+   * 发送视频帧（静默消费，仅节流日志便于本地调试）
    */
-  sendVideoFrame(_frame: string): void {
-    // 静默消费，不模拟服务器响应
+  sendVideoFrame(frame: string, timestampMs: number): void {
+    const now = Date.now();
+    if (now - this.lastVideoFrameLogTime >= 5000) {
+      console.log(
+        `[MockWS] 发送 video_frame, timestampMs: ${timestampMs}, 帧数据大小: ${frame.length} chars (base64)`
+      );
+      this.lastVideoFrameLogTime = now;
+    }
   }
 
   /**
@@ -319,11 +331,11 @@ export class MockWebSocketClient {
    * 处理 self_intro_complete：开始第一道题
    */
   private async handleSelfIntroComplete(): Promise<void> {
-    console.log('[MockWS] 自我介绍完成，开始提问');
+    console.log('[MockWS] 自我介绍完成，模拟生成面试题中…');
 
-    await sleep(300);
+    await sleep(MOCK_DELAY_BEFORE_FIRST_QUESTION_MS);
 
-    // 发送第一道题
+    console.log('[MockWS] 首题就绪，推送 new_question');
     await this.sendNextQuestion();
   }
 
@@ -356,6 +368,8 @@ export class MockWebSocketClient {
 
     // 检查是否还有下一道题
     if (this.currentQuestionIndex < this.questions.length) {
+      console.log('[MockWS] 模拟 LLM 思考中…');
+      await sleep(MOCK_DELAY_LLM_BEFORE_NEXT_QUESTION_MS);
       await this.sendNextQuestion();
     } else {
       // 面试结束，生成最终报告

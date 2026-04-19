@@ -4,6 +4,17 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useInterviewStore } from '../store/interviewStore';
 import { VoiceActivityDetector } from '../lib/vad';
 
+/** 自适应 VAD 参数：见 lib/vad.ts（噪声底 + 双阈值 + 窗口比例） */
+const VAD_OPTIONS = {
+  threshold: 0.012,
+  speechDurationMs: 240,
+  silenceDurationMs: 520,
+  ratioStart: 0.4,
+  windowFrames: 8,
+  noiseMultStart: 2.6,
+  noiseMultEnd: 1.45,
+} as const;
+
 interface AudioQuestionErrorPayload {
   message: string;
 }
@@ -31,7 +42,7 @@ interface AudioStreamManager {
  * 1. audio_question_start → 开始播放 TTS + 启动 VAD 监听
  * 2a. audio_question_end → 等待播放完毕 → beep → startRecording
  * 2b. VAD 检测到说话 → stopImmediately → beep → startRecording
- * 3. audio_question_error → 降级为文字模式 → beep → startRecording
+ * 3. audio_question_error → 降级为文字模式 → beep → 等用户说话 → startRecording（与 Mock 一致）
  */
 export function useAudioPlayback() {
   const managerRef = useRef<AudioStreamManager | null>(null);
@@ -93,20 +104,19 @@ export function useAudioPlayback() {
 
     console.log('[useAudioPlayback] 开始录音 - encoder 存在:', !!encoder);
 
-    // 先发送 audio_start 消息，携带录音开始时间戳
-    if (wsClient) {
-      const startTimestampMs = Date.now();
-      wsClient.sendAudioStart(startTimestampMs);
-      console.log('[useAudioPlayback] 发送 audio_start:', startTimestampMs);
-    }
-
-    // 启动 encoder 发送音频数据
+    // 先 audio_start（时间戳回溯 pre-roll），再 flush pre-roll + 实时发送（方案 B）
     if (encoder) {
+      const preRollMs = Math.round(encoder.getPreRollDurationMs());
+      const startTimestampMs = Date.now() - preRollMs;
+      if (wsClient) {
+        wsClient.sendAudioStart(startTimestampMs);
+        console.log('[useAudioPlayback] 发送 audio_start:', startTimestampMs, 'preRollMs≈', preRollMs);
+      }
       console.log('[useAudioPlayback] 调用 encoder.startSending()');
       encoder.startSending();
 
       setAnswerPhase('answering');
-      setAnswerStartTime(Date.now());
+      setAnswerStartTime(startTimestampMs);
       setIsRecordingAudio(true);
       setIsRecording(true);
       console.log('[useAudioPlayback] 开始录音');
@@ -203,6 +213,7 @@ export function useAudioPlayback() {
           await waitForPlaybackComplete(manager);
         }
         setIsPlaying(false);
+        interruptedRef.current = false;
 
         // 播放 beep，但不开始录音，等 VAD 检测到说话才开始
         await playBeep();
@@ -212,18 +223,11 @@ export function useAudioPlayback() {
         console.error('[useAudioPlayback] TTS 错误:', data?.message);
         setAudioError(true, data?.message ?? '语音合成失败');
         setIsPlaying(false);
+        interruptedRef.current = false;
 
-        // Mock 模式下直接启动录音（没有真实音频输入，VAD 不会触发）
-        if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true') {
-          playBeep().then(() => {
-            console.log('[useAudioPlayback] Mock 模式下直接启动录音');
-            startRecording();
-          });
-        } else {
-          // 真实模式下等用户说话开始录音
-          playBeep();
-          console.log('[useAudioPlayback] TTS 错误，等待用户说话开始录音...');
-        }
+        // 降级为文字后同样等 VAD 检测到说话再 startRecording（Mock 与线上一致，便于「回答完毕」在开口前保持禁用）
+        playBeep();
+        console.log('[useAudioPlayback] TTS 错误，等待用户说话开始录音...');
       },
     };
 
@@ -261,8 +265,7 @@ export function useAudioPlayback() {
     // 创建或重置 VAD
     if (!vadRef.current) {
       const vad = new VoiceActivityDetector({
-        threshold: 0.01,
-        speechDurationMs: 300,
+        ...VAD_OPTIONS,
         onSpeechStart: () => {
           const state = useInterviewStore.getState();
 
@@ -280,10 +283,22 @@ export function useAudioPlayback() {
             interruptedRef.current = true;
             managerRef.current.stopImmediately();
             setIsPlaying(false);
-            playBeep().then(() => startRecording());
+            playBeep().then(() => {
+              if (useInterviewStore.getState().answerPhase === 'evaluating') {
+                console.log('[useAudioPlayback] 打断 beep 结束后已进入后端处理，不再开录');
+                return;
+              }
+              startRecording();
+            });
           }
           // 播放结束后或自我介绍阶段，用户开始说话
-          else if (!interruptedRef.current && !state.isRecordingAudio) {
+          // 注意：不能依赖 interruptedRef（它用于“是否已打断播放”），否则可能在降级路径卡死无法开录
+          else if (!state.isRecordingAudio) {
+            // 已提交回答、或自我介绍已提交：后端处理中 / 下一题未返回前，不因说话开录
+            if (state.answerPhase === 'evaluating') {
+              console.log('[useAudioPlayback] 后端处理中，忽略语音开录（等待下一题）');
+              return;
+            }
             console.log('[useAudioPlayback] 检测到用户说话，开始录音');
             interruptedRef.current = true; // 防止重复触发
             startRecording();
@@ -306,9 +321,15 @@ export function useAudioPlayback() {
         const afterProcess = vad.isSpeaking;
         // 状态变化时打日志
         if (!beforeProcess && afterProcess) {
-          console.log(`[VAD] 检测到说话开始, RMS=${vol.toFixed(4)}, threshold=0.01`);
+          const t = vad.getThresholds();
+          console.log(
+            `[VAD] 检测到说话开始, RMS=${vol.toFixed(4)}, startTh≈${t.start.toFixed(4)}, noiseFloor≈${t.noiseFloor.toFixed(4)}`
+          );
         } else if (beforeProcess && !afterProcess) {
-          console.log(`[VAD] 检测到说话停止, RMS=${vol.toFixed(4)}`);
+          const t = vad.getThresholds();
+          console.log(
+            `[VAD] 检测到说话停止, RMS=${vol.toFixed(4)}, endTh≈${t.end.toFixed(4)}`
+          );
         }
       }
     });
@@ -321,6 +342,17 @@ export function useAudioPlayback() {
       }
     };
   }, [isEncoderReady, playBeep, startRecording]);
+
+  /** 新题到达（index 变化）时重置 VAD，避免上一题评估间隙已开录导致 isSpeaking / interruptedRef 粘连 */
+  const currentQuestionIndex = useInterviewStore((s) => s.currentQuestion?.index ?? null);
+  const lastSyncedQuestionIndexRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (currentQuestionIndex === null) return;
+    if (lastSyncedQuestionIndexRef.current === currentQuestionIndex) return;
+    lastSyncedQuestionIndexRef.current = currentQuestionIndex;
+    interruptedRef.current = false;
+    vadRef.current?.reset();
+  }, [currentQuestionIndex]);
 
   // 自我介绍阶段：等待 encoder 就绪且收到 self_intro 后，播放 beep 提示用户
   useEffect(() => {

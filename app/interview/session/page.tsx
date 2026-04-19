@@ -26,6 +26,7 @@ export default function InterviewSessionPage() {
     setInterviewPhase,
     setHasSelfIntro,
     setHasJobAnalysisComplete,
+    setIsRecordingAudio,
   } = useInterviewStore();
 
   // 初始化音频播放
@@ -73,6 +74,12 @@ export default function InterviewSessionPage() {
         });
         // 收到第一道技术题时切换到问答阶段
         setInterviewPhase('questioning');
+        // 新题到达后先进入 waiting；用户开口触发 VAD 后由 startRecording() 切到 answering
+        setAnswerPhase('waiting');
+        setAnswerStartTime(null);
+        // 评估间隙用户可能已触发开录：必须清掉，否则 isRecordingAudio 仍为 true，VAD 无法再 startRecording，按钮也会一直 disable
+        setIsRecordingAudio(false);
+        useInterviewStore.getState()._audioEncoderGetter?.()?.stopSending();
         console.log('[Interview] 已设置 currentQuestion 和 interviewPhase');
         // answerPhase 和 answerStartTime 的设置延迟到 beep 播放完毕后，
         // 由 useAudioPlayback 中的 startRecording() 触发
@@ -114,7 +121,7 @@ export default function InterviewSessionPage() {
       wsClient.off('answer_received', handlers.answerReceived);
       wsClient.off('error', handlers.error);
     };
-  }, [wsClient, router, setSessionId, setCurrentQuestion, addEvaluationResult, setReport, setInterviewStatus, setAnswerPhase, setAnswerStartTime, setInterviewPhase, setHasSelfIntro, setHasJobAnalysisComplete]);
+  }, [wsClient, router, setSessionId, setCurrentQuestion, addEvaluationResult, setReport, setInterviewStatus, setAnswerPhase, setAnswerStartTime, setInterviewPhase, setHasSelfIntro, setHasJobAnalysisComplete, setIsRecordingAudio]);
 
   // 准备中加载界面：等待 self_intro 信号
   if (!hasSelfIntro) {

@@ -17,6 +17,21 @@ const CANVAS_WIDTH = 160;
 const CANVAS_HEIGHT = 120;
 const JPEG_QUALITY = 0.5;
 
+/** 自我介绍已提交、等待首题（后端生成中） */
+const EVAL_STATUS_SELF_INTRO = [
+  '分析人物画像中…',
+  '题目生成中…',
+  '匹配岗位能力模型中…',
+  '即将就绪…',
+] as const;
+/** 答题已提交、等待评估或下一题 */
+const EVAL_STATUS_QUESTIONING = [
+  '评估回答中…',
+  '生成面试反馈中…',
+  '准备下一环节…',
+] as const;
+const EVAL_STATUS_ROTATE_MS = 5000;
+
 const VideoInterview = () => {
   const router = useRouter();
   const store = useInterviewStore();
@@ -53,6 +68,19 @@ const VideoInterview = () => {
   const [mediaError, setMediaError] = useState('');
   const [isModelReady, setIsModelReady] = useState(false);
   const [isQuestionExpanded, setIsQuestionExpanded] = useState(true);
+  const [evalStatusIndex, setEvalStatusIndex] = useState(0);
+
+  // 评估/等待后端阶段：右上角文案轮换（如首题生成可能较久）
+  useEffect(() => {
+    if (answerPhase !== 'evaluating') return;
+    setEvalStatusIndex(0);
+    const list =
+      interviewPhase === 'self_intro' ? EVAL_STATUS_SELF_INTRO : EVAL_STATUS_QUESTIONING;
+    const id = setInterval(() => {
+      setEvalStatusIndex((i) => (i + 1) % list.length);
+    }, EVAL_STATUS_ROTATE_MS);
+    return () => clearInterval(id);
+  }, [answerPhase, interviewPhase]);
 
   // 将 Uint8Array 转换为 base64
   const uint8ToBase64 = useCallback((data: Uint8Array): string => {
@@ -294,11 +322,22 @@ const VideoInterview = () => {
 
   const handleToggleMic = useCallback(() => {
     const audioTrack = streamRef.current?.getAudioTracks()[0];
-    if (audioTrack) {
-      audioTrack.enabled = !audioTrack.enabled;
-      toggleMic();
+    if (!audioTrack) return;
+
+    const willBeEnabled = !audioTrack.enabled;
+    audioTrack.enabled = willBeEnabled;
+    toggleMic();
+
+    // 关麦：停止真实 PCM，若在答题录音中则每 10s 发一帧全零 PCM 保活，避免服务端无 audio_chunk 断开
+    if (!willBeEnabled) {
+      audioEncoderRef.current?.stopSending();
+      if (isRecordingAudio) {
+        audioEncoderRef.current?.startSilentKeepalive(10_000);
+      }
+    } else if (isRecordingAudio) {
+      audioEncoderRef.current?.startSending();
     }
-  }, [toggleMic]);
+  }, [toggleMic, isRecordingAudio]);
 
   const handleAnswerComplete = useCallback(() => {
     // 自我介绍阶段：必须收到两个信号才能结束
@@ -377,22 +416,31 @@ const VideoInterview = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-muted/50 border border-border/50">
-            <Clock className="size-4 text-muted-foreground" />
-            <span className="font-mono tabular-nums text-sm font-medium">{formatTime(elapsedTime)}</span>
-          </div>
-
+          {/* 录制状态在左、计时在右，避免秒数变化与条件渲染时整块左右挤动 */}
           {answerPhase === 'answering' && isRecordingAudio && (
-            <span className="flex items-center gap-2 text-red-400 text-sm animate-fade-in">
+            <span className="flex shrink-0 items-center gap-2 text-red-400 text-sm animate-fade-in">
               <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
               <span className="font-medium">录制中</span>
             </span>
           )}
 
+          <div className="flex min-w-[5.25rem] shrink-0 items-center gap-2.5 rounded-lg border border-border/50 bg-muted/50 px-3 py-1.5">
+            <Clock className="size-4 shrink-0 text-muted-foreground" />
+            <span className="text-sm font-medium font-mono tabular-nums">{formatTime(elapsedTime)}</span>
+          </div>
+
           {answerPhase === 'evaluating' && (
-            <span className="flex items-center gap-2 text-primary text-sm animate-fade-in">
-              <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-              <span className="font-medium">评估中</span>
+            <span className="flex items-center gap-2 text-primary text-sm animate-fade-in max-w-[min(280px,36vw)]">
+              <span className="w-2 h-2 shrink-0 bg-primary rounded-full animate-pulse" />
+              <span className="font-medium truncate" title={
+                interviewPhase === 'self_intro'
+                  ? EVAL_STATUS_SELF_INTRO[evalStatusIndex]
+                  : EVAL_STATUS_QUESTIONING[evalStatusIndex]
+              }>
+                {interviewPhase === 'self_intro'
+                  ? EVAL_STATUS_SELF_INTRO[evalStatusIndex]
+                  : EVAL_STATUS_QUESTIONING[evalStatusIndex]}
+              </span>
             </span>
           )}
 
@@ -421,16 +469,16 @@ const VideoInterview = () => {
         {/* Video Area - Left Side */}
         <div className="flex-1 flex items-center justify-center p-6 min-w-0 transition-all duration-300">
           <div className="relative w-full h-full max-w-5xl rounded-3xl overflow-hidden shadow-2xl ring-1 ring-border/50">
-            {isCameraEnabled ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover bg-black scale-x-[-1]"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted/50 to-muted/30">
+            {/* 必须始终挂载 video，否则关闭后再打开时新元素拿不到 initMedia 里设置的 srcObject，会黑屏 */}
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="block h-full w-full object-cover bg-black scale-x-[-1]"
+            />
+            {!isCameraEnabled && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-gradient-to-br from-muted/50 to-muted/30">
                 <div className="text-center">
                   <div className="w-24 h-24 rounded-2xl bg-background/80 backdrop-blur-sm flex items-center justify-center mx-auto mb-4 shadow-lg">
                     <VideoOff className="size-12 text-muted-foreground" />
@@ -540,10 +588,21 @@ const VideoInterview = () => {
         <Button
           size="lg"
           onClick={handleAnswerComplete}
-          disabled={interviewPhase === 'self_intro' ? !isReady : answerPhase !== 'answering'}
+          disabled={
+            interviewPhase === 'self_intro'
+              ? !isReady ||
+                answerPhase === 'evaluating' ||
+                answerPhase !== 'answering' ||
+                !isRecordingAudio
+              : answerPhase !== 'answering' || !isRecordingAudio
+          }
           className={cn(
             'px-12 py-4 rounded-2xl font-semibold transition-all duration-200 shadow-lg',
-            (interviewPhase === 'self_intro' ? isReady : answerPhase === 'answering')
+            (interviewPhase === 'self_intro'
+              ? isReady &&
+                answerPhase === 'answering' &&
+                isRecordingAudio
+              : answerPhase === 'answering' && isRecordingAudio)
               ? 'bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:shadow-xl hover:-translate-y-0.5 hover:from-primary hover:to-primary/90'
               : 'bg-muted text-muted-foreground cursor-not-allowed shadow-none'
           )}
