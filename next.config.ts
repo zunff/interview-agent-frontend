@@ -11,8 +11,10 @@ const nextConfig: NextConfig = {
   },
   // 标记这些包为服务端外部包，它们只能在客户端使用
   serverExternalPackages: ['ogg-opus-decoder', '@eshaz/web-worker', 'opus-decoder'],
-  // 空的 turbopack 配置以消除警告
-  turbopack: {},
+  // 明确指定 Turbopack 根目录，避免扫描父目录的 node_modules
+  turbopack: {
+    root: __dirname,
+  },
 };
 
 export default nextConfig;

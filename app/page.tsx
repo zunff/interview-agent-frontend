@@ -5,10 +5,16 @@ import ParticleBackground from '../components/ParticleBackground';
 import ThemeToggle from '../components/ThemeToggle';
 import { useTheme } from '../components/ThemeProvider';
 import { Badge } from '../components/ui/badge';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-const InterviewForm = dynamic(() => import('../components/InterviewForm'), { ssr: false });
+const InterviewForm = dynamic(() => import('../components/InterviewForm'), {
+  loading: () => (
+    <div className="w-full max-w-3xl mx-auto flex items-center justify-center py-20">
+      <Loader2 className="size-8 text-primary animate-spin" />
+    </div>
+  ),
+});
 
 const motivationalQuotes = [
   '你好！我是你的 AI 面试助手，今天感觉怎么样？',

@@ -37,6 +37,7 @@ const VideoInterview = () => {
     setElapsedTime,
     setAudioEncoderGetter,
     setIsEncoderReady,
+    setIsRecordingAudio,
     clearState,
   } = store;
 
@@ -310,6 +311,7 @@ const VideoInterview = () => {
 
     // 停止发送音频数据
     audioEncoderRef.current?.stopSending();
+    setIsRecordingAudio(false);
 
     if (interviewPhase === 'self_intro') {
       wsClient.sendSelfIntroComplete();

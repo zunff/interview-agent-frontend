@@ -114,7 +114,7 @@ export function useAudioPlayback() {
       // 理论上不应该发生，因为 isEncoderReady 保证 encoder 已就绪
       console.error('[useAudioPlayback] encoder 为空！isEncoderReady 应该为 false');
     }
-  }, [setAnswerPhase, setAnswerStartTime, setIsRecordingAudio]);
+  }, [setAnswerPhase, setAnswerStartTime, setIsRecordingAudio, setIsRecording]);
 
   /**
    * 停止录音。
@@ -129,13 +129,14 @@ export function useAudioPlayback() {
   }, [setIsRecordingAudio]);
 
   /**
-   * 等待 AudioStreamManager 播放队列清空。
+   * 等待 AudioStreamManager 播放队列清空，并额外缓冲确保尾音自然结束。
    */
   const waitForPlaybackComplete = useCallback(async (manager: AudioStreamManager): Promise<void> => {
     return new Promise<void>((resolve) => {
       const check = () => {
         if (!manager.playing) {
-          resolve();
+          // 额外缓冲 300ms，确保最后一个字的尾音完全结束
+          setTimeout(resolve, 300);
           return;
         }
         setTimeout(check, 50);
@@ -170,39 +171,14 @@ export function useAudioPlayback() {
         ttsChunkLogTimeRef.current = 0;
         console.log('[useAudioPlayback] 收到 audio_question_start，准备接收并播放 TTS 二进制音频');
         resetAudioState();
+        setIsRecordingAudio(false); // 重置录音状态，为下一题做准备
         manager?.stop();
         interruptedRef.current = false;
         setIsPlaying(true);
 
-        // 重置或创建 VAD
-        const encoder = useInterviewStore.getState()._audioEncoderGetter?.();
-        if (encoder) {
-          if (!vadRef.current) {
-            const vad = new VoiceActivityDetector({
-              threshold: 0.01,
-              speechDurationMs: 300,
-              onSpeechStart: () => {
-                // 播放中被用户打断
-                if (managerRef.current?.playing && !interruptedRef.current) {
-                  console.log('[useAudioPlayback] VAD 检测到说话，打断播放');
-                  interruptedRef.current = true;
-                  managerRef.current.stopImmediately();
-                  setIsPlaying(false);
-                  playBeep().then(() => startRecording());
-                } else if (!interruptedRef.current) {
-                  // 播放结束后，用户开始说话，开始录音
-                  console.log('[useAudioPlayback] 检测到用户说话，开始录音');
-                  interruptedRef.current = true; // 防止重复触发
-                  startRecording();
-                }
-              },
-            });
-            vadRef.current = vad;
-          } else {
-            vadRef.current.reset();
-          }
-          // 每次都重新设置 callback，确保引用正确
-          encoder.setVadCallback((vol) => vadRef.current!.processVolume(vol));
+        // 重置 VAD 状态（VAD 对象和 callback 在 encoder 就绪时已统一设置）
+        if (vadRef.current) {
+          vadRef.current.reset();
         }
       },
       onChunk: (data: ArrayBuffer) => {
@@ -259,19 +235,9 @@ export function useAudioPlayback() {
     wsClient.on('audio_question_error', handlers.onError);
 
     return () => {
-      // 清除 encoder 上的 VAD callback
-      const encoder = useInterviewStore.getState()._audioEncoderGetter?.();
-      if (encoder) {
-        encoder.setVadCallback(null);
-      }
-
       manager?.dispose();
       managerRef.current = null;
       handlersRef.current = null;
-      if (vadRef.current) {
-        vadRef.current.reset();
-        vadRef.current = null;
-      }
 
       wsClient.off('audio_question_start', handlers.onStart);
       wsClient.offBinary('audio_question_chunk', handlers.onChunk);
@@ -283,20 +249,95 @@ export function useAudioPlayback() {
         beepAudioContextRef.current = null;
       }
     };
-  }, [wsClient, setAudioError, resetAudioState, playBeep, startRecording, waitForPlaybackComplete]);
+  }, [wsClient, setAudioError, resetAudioState, setIsRecordingAudio, playBeep, startRecording, waitForPlaybackComplete]);
 
-  // 自我介绍阶段：等待 encoder 就绪且收到 self_intro 后启动录音
+  // 统一初始化 VAD（在 encoder 就绪时设置一次）
+  useEffect(() => {
+    if (!isEncoderReady) return;
+
+    const encoder = useInterviewStore.getState()._audioEncoderGetter?.();
+    if (!encoder) return;
+
+    // 创建或重置 VAD
+    if (!vadRef.current) {
+      const vad = new VoiceActivityDetector({
+        threshold: 0.01,
+        speechDurationMs: 300,
+        onSpeechStart: () => {
+          const state = useInterviewStore.getState();
+
+          console.log('[VAD] onSpeechStart 触发', {
+            managerPlaying: managerRef.current?.playing,
+            interrupted: interruptedRef.current,
+            isRecordingAudio: state.isRecordingAudio,
+            interviewPhase: state.interviewPhase,
+            answerPhase: state.answerPhase,
+          });
+
+          // 播放中被用户打断
+          if (managerRef.current?.playing && !interruptedRef.current) {
+            console.log('[useAudioPlayback] VAD 检测到说话，打断播放');
+            interruptedRef.current = true;
+            managerRef.current.stopImmediately();
+            setIsPlaying(false);
+            playBeep().then(() => startRecording());
+          }
+          // 播放结束后或自我介绍阶段，用户开始说话
+          else if (!interruptedRef.current && !state.isRecordingAudio) {
+            console.log('[useAudioPlayback] 检测到用户说话，开始录音');
+            interruptedRef.current = true; // 防止重复触发
+            startRecording();
+          } else {
+            console.log('[VAD] onSpeechStart 被忽略，conditions not met');
+          }
+        },
+      });
+      vadRef.current = vad;
+    } else {
+      vadRef.current.reset();
+    }
+
+    // 设置 VAD callback
+    encoder.setVadCallback((vol) => {
+      const vad = vadRef.current;
+      if (vad) {
+        const beforeProcess = vad.isSpeaking;
+        vad.processVolume(vol);
+        const afterProcess = vad.isSpeaking;
+        // 状态变化时打日志
+        if (!beforeProcess && afterProcess) {
+          console.log(`[VAD] 检测到说话开始, RMS=${vol.toFixed(4)}, threshold=0.01`);
+        } else if (beforeProcess && !afterProcess) {
+          console.log(`[VAD] 检测到说话停止, RMS=${vol.toFixed(4)}`);
+        }
+      }
+    });
+    console.log('[useAudioPlayback] VAD callback 已设置');
+
+    return () => {
+      encoder.setVadCallback(null);
+      if (vadRef.current) {
+        vadRef.current.reset();
+      }
+    };
+  }, [isEncoderReady, playBeep, startRecording]);
+
+  // 自我介绍阶段：等待 encoder 就绪且收到 self_intro 后，播放 beep 提示用户
   useEffect(() => {
     if (isEncoderReady && hasSelfIntro && !isRecording) {
       const interviewPhase = useInterviewStore.getState().interviewPhase;
       if (interviewPhase === 'self_intro') {
-        console.log('[useAudioPlayback] encoder 已就绪且收到 self_intro，启动录音');
+        console.log('[useAudioPlayback] encoder 已就绪且收到 self_intro，播放 beep 提示用户');
         resetAudioState();
         interruptedRef.current = false;
-        startRecording();
+
+        // 播放 beep 提示用户可以开始说话（VAD 会在检测到说话时启动录音）
+        playBeep().then(() => {
+          console.log('[useAudioPlayback] 自我介绍 beep 播放完毕，等待用户说话...');
+        });
       }
     }
-  }, [isEncoderReady, hasSelfIntro, isRecording, resetAudioState, startRecording]);
+  }, [isEncoderReady, hasSelfIntro, isRecording, resetAudioState, playBeep]);
 
   return { isPlaying, isRecording, stopRecording };
 }

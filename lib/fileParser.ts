@@ -1,12 +1,4 @@
-import mammoth from 'mammoth';
-import * as pdfjsLib from 'pdfjs-dist';
-
-if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
-    import.meta.url,
-  ).toString();
-}
+// 动态导入文件解析库，避免首屏加载不必要的依赖
 
 export interface ParseResult {
   text: string;
@@ -15,20 +7,31 @@ export interface ParseResult {
 
 export const parsePDF = async (file: File): Promise<ParseResult> => {
   try {
+    // 动态导入 pdfjs-dist，避免首屏加载
+    const pdfjsLib = await import('pdfjs-dist');
+
+    // 设置 worker（仅在客户端）
+    if (typeof window !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+        'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
+        import.meta.url,
+      ).toString();
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const typedArray = new Uint8Array(arrayBuffer);
-    
+
     const loadingTask = pdfjsLib.getDocument({
       data: typedArray,
       useWorkerFetch: false,
       isEvalSupported: false,
       useSystemFonts: true,
     });
-    
+
     const pdf = await loadingTask.promise;
-    
+
     let fullText = '';
-    
+
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
@@ -37,7 +40,7 @@ export const parsePDF = async (file: File): Promise<ParseResult> => {
         .join(' ');
       fullText += pageText + '\n';
     }
-    
+
     return {
       text: fullText.trim(),
       error: null
@@ -53,6 +56,9 @@ export const parsePDF = async (file: File): Promise<ParseResult> => {
 
 export const parseDOCX = async (file: File): Promise<ParseResult> => {
   try {
+    // 动态导入 mammoth，避免首屏加载
+    const mammoth = await import('mammoth');
+
     const arrayBuffer = await file.arrayBuffer();
     const result = await mammoth.extractRawText({
       arrayBuffer: arrayBuffer

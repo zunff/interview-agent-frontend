@@ -1,5 +1,5 @@
 /* Tech Minimalist Theme — Dark/Light mode, cyan accents, Plus Jakarta Sans */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+/* Font loaded via Next.js font optimization in layout.tsx */
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -10,7 +10,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 
   /* Shadcn mappings */
   --color-sidebar-ring: var(--sidebar-ring);
