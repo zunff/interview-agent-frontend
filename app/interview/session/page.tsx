@@ -6,6 +6,7 @@ import { useInterviewStore } from '../../../store/interviewStore';
 import { useAudioPlayback } from '../../../hooks/useAudioPlayback';
 import VideoInterview from '../../../components/VideoInterview';
 import ReportDisplay from '../../../components/ReportDisplay';
+import { ReportExperienceLayout } from '../../../components/ReportExperienceLayout';
 import { Button } from '../../../components/ui/button';
 import { Loader2 } from 'lucide-react';
 
@@ -140,23 +141,22 @@ export default function InterviewSessionPage() {
 
   if (interviewStatus === '已结束') {
     return (
-      <div className="min-h-screen bg-background p-6 sm:p-10">
-        <div className="max-w-4xl mx-auto animate-fade-in-up">
-          <h1 className="text-4xl font-bold text-foreground mb-8">
-            面试结束
-          </h1>
-          <ReportDisplay />
-          <div className="mt-8">
-            <Button
-              onClick={() => router.push('/')}
-              size="lg"
-              className="px-8"
-            >
-              重新开始
-            </Button>
-          </div>
+      <ReportExperienceLayout
+        showPageHeading={false}
+        contentClassName="max-w-7xl"
+        headerExtra={
+          <Button variant="outline" size="sm" onClick={() => router.push('/')}>
+            首页
+          </Button>
+        }
+      >
+        <ReportDisplay />
+        <div className="mt-10 flex justify-center animate-fade-in-up">
+          <Button size="lg" className="min-w-[160px] px-8" onClick={() => router.push('/')}>
+            重新开始
+          </Button>
         </div>
-      </div>
+      </ReportExperienceLayout>
     );
   }
 
