@@ -50,8 +50,8 @@ export default function ReportPage() {
       showPageHeading={false}
       contentClassName="max-w-7xl"
       headerExtra={
-        <Button variant="outline" size="sm" onClick={() => router.push('/')}>
-          首页
+        <Button variant="outline" size="sm" onClick={() => router.back()}>
+          返回
         </Button>
       }
     >

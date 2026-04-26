@@ -1,51 +1,20 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
 import { useInterviewStore } from '../store/interviewStore';
 import { Badge } from './ui/badge';
+import { useTypingEffect } from '../hooks/useTypingEffect';
 
-// 自我介绍引导文本
 const SELF_INTRO_TEXT = '请做一个简短的自我介绍，谈谈你的背景、技能和为什么对这个岗位感兴趣。';
 
 const QuestionDisplay = () => {
   const { currentQuestion, interviewPhase } = useInterviewStore();
-  const [displayedText, setDisplayedText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
 
-  // 确定要显示的内容
   const targetContent = interviewPhase === 'self_intro'
     ? SELF_INTRO_TEXT
     : (currentQuestion?.content || '');
 
-  // 打字动画 - 仅依赖 targetContent，displayedText 更新不触发重新动画
-  useEffect(() => {
-    if (!targetContent) {
-      setDisplayedText('');
-      setIsTyping(false);
-      return;
-    }
+  const { displayedText, isTyping } = useTypingEffect(targetContent, 30);
 
-    let charIndex = 0;
-    let timeoutId: ReturnType<typeof setTimeout>;
-    setDisplayedText('');
-    setIsTyping(true);
-
-    const typeChar = () => {
-      if (charIndex < targetContent.length) {
-        charIndex++;
-        setDisplayedText(targetContent.slice(0, charIndex));
-        timeoutId = setTimeout(typeChar, 30);
-      } else {
-        setIsTyping(false);
-      }
-    };
-
-    timeoutId = setTimeout(typeChar, 30);
-
-    return () => clearTimeout(timeoutId);
-  }, [targetContent]);
-
-  // 自我介绍阶段显示引导
   if (interviewPhase === 'self_intro') {
     return (
       <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/30 p-6 backdrop-blur-sm shadow-lg">
@@ -61,7 +30,6 @@ const QuestionDisplay = () => {
     );
   }
 
-  // 问答阶段
   if (!currentQuestion) {
     return (
       <div className="rounded-2xl bg-muted/30 border border-border/50 p-6 backdrop-blur-sm">

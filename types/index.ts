@@ -220,3 +220,24 @@ export interface EmotionData {
   confidence: number;
   timestamp: number;
 }
+
+// 面试历史记录
+export interface InterviewHistoryItem {
+  sessionId: string;
+  jobInfo: string;
+  status: 'WAITING' | 'IN_PROGRESS' | 'WAITING_ANSWER' | 'DISCONNECTED' | 'FINISHED';
+  currentQuestionIndex: number;
+  maxTechnicalQuestions: number;
+  maxBusinessQuestions: number;
+  createTime: string;
+  endTime: string | null;
+}
+
+// 分页结果
+export interface PageResult<T> {
+  records: T[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}

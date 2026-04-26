@@ -1,11 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import ParticleBackground from './ParticleBackground';
-import ThemeToggle from './ThemeToggle';
-import { useTheme } from './ThemeProvider';
-import { Sparkles } from 'lucide-react';
+import PageBackground from './PageBackground';
+import AppHeader from './AppHeader';
 
 type ReportExperienceLayoutProps = {
   children: React.ReactNode;
@@ -29,34 +26,11 @@ export function ReportExperienceLayout({
   headerExtra,
   contentClassName,
 }: ReportExperienceLayoutProps) {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
-
   return (
     <main className="relative flex min-h-screen flex-col">
-      {isDark && <ParticleBackground />}
-      {!isDark && (
-        <div
-          className="pointer-events-none fixed inset-0 bg-gradient-to-br from-cyan-50/50 via-transparent to-sky-50/30"
-          aria-hidden
-        />
-      )}
+      <PageBackground />
 
-      <header className="relative z-10 flex w-full items-center justify-between px-6 py-4">
-        <Link
-          href="/"
-          className="flex items-center gap-3 rounded-xl outline-none ring-offset-background transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-            <Sparkles className="size-5 text-primary" />
-          </div>
-          <span className="text-sm font-semibold text-foreground">AI 模拟面试</span>
-        </Link>
-        <div className="flex items-center gap-2 sm:gap-3">
-          {headerExtra}
-          <ThemeToggle />
-        </div>
-      </header>
+      <AppHeader right={headerExtra} />
 
       <div
         className={cn(

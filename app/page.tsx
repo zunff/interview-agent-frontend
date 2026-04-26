@@ -1,12 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import ParticleBackground from '../components/ParticleBackground';
-import ThemeToggle from '../components/ThemeToggle';
-import { useTheme } from '../components/ThemeProvider';
-import { Badge } from '../components/ui/badge';
-import { Sparkles, Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useTypingEffect } from '../hooks/useTypingEffect';
+import { ReportExperienceLayout } from '../components/ReportExperienceLayout';
+import { Loader2, History } from 'lucide-react';
 
 const InterviewForm = dynamic(() => import('../components/InterviewForm'), {
   loading: () => (
@@ -40,69 +39,37 @@ const motivationalQuotes = [
 ];
 
 export default function Home() {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
-  const [displayedQuote, setDisplayedQuote] = useState('');
-  const [displayedText, setDisplayedText] = useState('');
-  const [isTyping, setIsTyping] = useState(true);
-
-  useEffect(() => {
-    const quote = motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
-    setDisplayedQuote(quote);
-
-    let charIndex = 0;
-    const typingInterval = setInterval(() => {
-      if (charIndex < quote.length) {
-        setDisplayedText(quote.slice(0, charIndex + 1));
-        charIndex++;
-      } else {
-        setIsTyping(false);
-        clearInterval(typingInterval);
-      }
-    }, 50);
-
-    return () => clearInterval(typingInterval);
-  }, []);
+  // 只在首次渲染时随机选取 quote，避免每次渲染变化导致 useTypingEffect 重置
+  const [quote] = useState(() =>
+    motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)]
+  );
+  const { displayedText, isTyping } = useTypingEffect(quote, 50);
 
   return (
-    <main className="relative min-h-screen flex flex-col">
-      {/* Particle background - only in dark mode */}
-      {isDark && <ParticleBackground />}
-
-      {/* Subtle gradient for light mode */}
-      {!isDark && (
-        <div className="fixed inset-0 bg-gradient-to-br from-cyan-50/50 via-transparent to-sky-50/30 pointer-events-none" />
-      )}
-
-      {/* Header with theme toggle */}
-      <div className="w-full px-6 py-4 flex items-center justify-between relative z-10">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10">
-            <Sparkles className="size-5 text-primary" />
+    <ReportExperienceLayout
+      headerExtra={
+        <Link
+          href="/history"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+        >
+          <History className="size-4" />
+          <span>历史记录</span>
+        </Link>
+      }
+    >
+      {/* AI Greeting Display */}
+      <div className="w-full max-w-3xl mb-10">
+        <div className="text-center py-8">
+          <div className="font-mono text-lg md:text-xl lg:text-2xl leading-relaxed text-foreground/90">
+            <span>{displayedText}</span>
+            {isTyping && (
+              <span className="inline-block w-0.5 h-5 ml-1 bg-primary animate-pulse" />
+            )}
           </div>
-          <span className="text-sm font-semibold text-foreground">AI 模拟面试</span>
-        </div>
-        <div>
-          <ThemeToggle />
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col items-center justify-start px-6 pt-16 pb-12 relative z-10">
-        {/* AI Greeting Display */}
-        <div className="w-full max-w-3xl mb-10">
-          <div className="text-center py-8">
-            <div className="font-mono text-lg md:text-xl lg:text-2xl leading-relaxed text-foreground/90">
-              <span>{displayedText}</span>
-              {isTyping && (
-                <span className="inline-block w-0.5 h-5 ml-1 bg-primary animate-pulse" />
-              )}
-            </div>
-          </div>
-        </div>
-
-        <InterviewForm />
-      </div>
-    </main>
+      <InterviewForm />
+    </ReportExperienceLayout>
   );
 }

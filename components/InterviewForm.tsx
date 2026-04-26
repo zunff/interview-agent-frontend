@@ -8,6 +8,7 @@ import { parseFile, isValidFileType, isValidFileSize } from '../lib/fileParser';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import NumberStepper from './NumberStepper';
 import {
   Dialog,
   DialogContent,
@@ -203,7 +204,8 @@ const InterviewForm = () => {
         router.push('/interview/session');
       });
 
-      // 提前注册关键监听器，避免路由跳转过程中错过信号
+      // 提前注册关键监听器，避免路由跳转过程中错过信号（竞态防护）
+      // 这些 handler 与 session/page.tsx 中的 handler 不冲突：操作幂等，且 InterviewForm 卸载后闭包仍有效
       wsClient.on('self_intro', () => {
         console.log('[InterviewForm] 收到 self_intro');
         setInterviewPhase('self_intro');
@@ -232,13 +234,6 @@ const InterviewForm = () => {
       setLoading(false);
     }
   };
-
-  const incrementMaxTechnicalQuestions = () => setMaxTechnicalQuestions(prev => Math.min(prev + 1, 15));
-  const decrementMaxTechnicalQuestions = () => setMaxTechnicalQuestions(prev => Math.max(prev - 1, 1));
-  const incrementMaxBusinessQuestions = () => setMaxBusinessQuestions(prev => Math.min(prev + 1, 10));
-  const decrementMaxBusinessQuestions = () => setMaxBusinessQuestions(prev => Math.max(prev - 1, 1));
-  const incrementMaxFollowUps = () => setMaxFollowUps(prev => Math.min(prev + 1, 5));
-  const decrementMaxFollowUps = () => setMaxFollowUps(prev => Math.max(prev - 1, 0));
 
   const handleImportFromBoss = async () => {
     if (!importHtml.trim()) {
@@ -601,107 +596,32 @@ ${jobInfo.jobDescription}`;
               <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="group relative overflow-hidden rounded-2xl border border-border/90 bg-background/70 p-4 transition-colors hover:border-primary/25 dark:bg-background/50">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <label className="text-xs font-medium text-muted-foreground">
-                      技术题数
-                    </label>
-                    <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Code2 className="size-3.5" strokeWidth={2} />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-3xl font-bold tabular-nums tracking-tight text-foreground">
-                      {maxTechnicalQuestions}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={decrementMaxTechnicalQuestions}
-                        className="flex size-8 items-center justify-center rounded-xl border border-border bg-background text-base font-semibold leading-none transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
-                        aria-label="减少技术题数"
-                      >
-                        −
-                      </button>
-                      <button
-                        type="button"
-                        onClick={incrementMaxTechnicalQuestions}
-                        className="flex size-8 items-center justify-center rounded-xl border border-border bg-background text-base font-semibold leading-none transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
-                        aria-label="增加技术题数"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="group relative overflow-hidden rounded-2xl border border-border/90 bg-background/70 p-4 transition-colors hover:border-primary/25 dark:bg-background/50">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <label className="text-xs font-medium text-muted-foreground">
-                      业务题数
-                    </label>
-                    <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
-                      <Briefcase className="size-3.5" strokeWidth={2} />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-3xl font-bold tabular-nums tracking-tight text-foreground">
-                      {maxBusinessQuestions}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={decrementMaxBusinessQuestions}
-                        className="flex size-8 items-center justify-center rounded-xl border border-border bg-background text-base font-semibold leading-none transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
-                        aria-label="减少业务题数"
-                      >
-                        −
-                      </button>
-                      <button
-                        type="button"
-                        onClick={incrementMaxBusinessQuestions}
-                        className="flex size-8 items-center justify-center rounded-xl border border-border bg-background text-base font-semibold leading-none transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
-                        aria-label="增加业务题数"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="group relative overflow-hidden rounded-2xl border border-border/90 bg-background/70 p-4 transition-colors hover:border-primary/25 dark:bg-background/50">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <label className="text-xs font-medium text-muted-foreground">
-                      最大追问数
-                    </label>
-                    <div className="flex size-7 items-center justify-center rounded-lg bg-amber-500/12 text-amber-700 dark:text-amber-400">
-                      <MessagesSquare className="size-3.5" strokeWidth={2} />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-3xl font-bold tabular-nums tracking-tight text-foreground">
-                      {maxFollowUps}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={decrementMaxFollowUps}
-                        className="flex size-8 items-center justify-center rounded-xl border border-border bg-background text-base font-semibold leading-none transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
-                        aria-label="减少追问数"
-                      >
-                        −
-                      </button>
-                      <button
-                        type="button"
-                        onClick={incrementMaxFollowUps}
-                        className="flex size-8 items-center justify-center rounded-xl border border-border bg-background text-base font-semibold leading-none transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
-                        aria-label="增加追问数"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <NumberStepper
+                  label="技术题数"
+                  value={maxTechnicalQuestions}
+                  min={1}
+                  max={15}
+                  icon={<Code2 className="size-3.5" strokeWidth={2} />}
+                  onChange={setMaxTechnicalQuestions}
+                />
+                <NumberStepper
+                  label="业务题数"
+                  value={maxBusinessQuestions}
+                  min={1}
+                  max={10}
+                  icon={<Briefcase className="size-3.5" strokeWidth={2} />}
+                  iconClassName="bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
+                  onChange={setMaxBusinessQuestions}
+                />
+                <NumberStepper
+                  label="最大追问数"
+                  value={maxFollowUps}
+                  min={0}
+                  max={5}
+                  icon={<MessagesSquare className="size-3.5" strokeWidth={2} />}
+                  iconClassName="bg-amber-500/12 text-amber-700 dark:text-amber-400"
+                  onChange={setMaxFollowUps}
+                />
               </div>
 
               <Button

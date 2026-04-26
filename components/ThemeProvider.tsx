@@ -3,6 +3,12 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
+const DEFAULT_THEME: Theme = 'system';
+
+const getSystemTheme = (): 'light' | 'dark' => {
+  if (typeof window === 'undefined') return 'dark';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+};
 
 interface ThemeContextType {
   theme: Theme;
@@ -11,7 +17,7 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: 'system',
+  theme: DEFAULT_THEME,
   resolvedTheme: 'dark',
   setTheme: () => {},
 });
@@ -19,8 +25,8 @@ const ThemeContext = createContext<ThemeContextType>({
 export const useTheme = () => useContext(ThemeContext);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('system');
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(getSystemTheme);
 
   const applyTheme = useCallback((t: 'light' | 'dark') => {
     document.documentElement.classList.toggle('dark', t === 'dark');
@@ -29,7 +35,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const resolveTheme = useCallback((t: Theme): 'light' | 'dark' => {
     if (t === 'system') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      return getSystemTheme();
     }
     return t;
   }, []);
@@ -42,7 +48,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem('theme') as Theme | null;
-    const initial = saved || 'system';
+    const initial = saved || DEFAULT_THEME;
+    if (!saved) {
+      localStorage.setItem('theme', DEFAULT_THEME);
+    }
     setThemeState(initial);
     // Theme already applied by inline script in layout.tsx, just update resolvedTheme state
     setResolvedTheme(resolveTheme(initial));

@@ -5,7 +5,7 @@
  * 这是 Mock 模式与生产代码的唯一集成点。
  */
 
-import { WebSocketClient } from './api';
+import { WebSocketClient } from './websocket/WebSocketClient';
 import { MockWebSocketClient } from './mockWebSocketClient';
 
 export type WebSocketClientLike = WebSocketClient | MockWebSocketClient;

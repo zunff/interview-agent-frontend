@@ -1,6 +1,12 @@
 import { useInterviewStore } from '../store/interviewStore';
 import { cn } from '../lib/utils';
 
+function getScoreColors(score: number) {
+  if (score >= 80) return { bg: 'bg-emerald-500', text: 'text-emerald-500' };
+  if (score >= 60) return { bg: 'bg-amber-500', text: 'text-amber-500' };
+  return { bg: 'bg-red-500', text: 'text-red-500' };
+}
+
 const EmotionDisplay = () => {
   const { currentEvaluation, evaluationResults } = useInterviewStore();
 
@@ -11,18 +17,6 @@ const EmotionDisplay = () => {
       </div>
     );
   }
-
-  const scoreColor = (score: number) => {
-    if (score >= 80) return 'bg-emerald-500';
-    if (score >= 60) return 'bg-amber-500';
-    return 'bg-red-500';
-  };
-
-  const scoreLabel = (score: number) => {
-    if (score >= 80) return 'text-emerald-500';
-    if (score >= 60) return 'text-amber-500';
-    return 'text-red-500';
-  };
 
   const scores = [
     { label: '准确度', value: currentEvaluation.accuracy },
@@ -41,7 +35,7 @@ const EmotionDisplay = () => {
           评估 · 第 {currentEvaluation.questionIndex + 1} 题
         </h3>
         <div className="px-3 py-1.5 rounded-xl bg-card border border-border">
-          <span className={cn('text-xl font-bold font-mono', scoreLabel(currentEvaluation.overallScore))}>
+          <span className={cn('text-xl font-bold font-mono', getScoreColors(currentEvaluation.overallScore).text)}>
             {currentEvaluation.overallScore}
           </span>
           <span className="text-xs text-muted-foreground ml-1">分</span>
@@ -65,13 +59,13 @@ const EmotionDisplay = () => {
           <div key={label}>
             <div className="flex justify-between items-center mb-1">
               <span className="text-xs text-muted-foreground">{label}</span>
-              <span className={cn('text-xs font-medium font-mono', scoreLabel(value))}>
+              <span className={cn('text-xs font-medium font-mono', getScoreColors(value).text)}>
                 {value}
               </span>
             </div>
             <div className="relative h-1.5 bg-muted rounded-full overflow-hidden">
               <div
-                className={cn('h-full rounded-full transition-all duration-700 ease-out', scoreColor(value))}
+                className={cn('h-full rounded-full transition-all duration-700 ease-out', getScoreColors(value).bg)}
                 style={{ width: `${value}%` }}
               />
             </div>
@@ -118,7 +112,7 @@ const EmotionDisplay = () => {
                 key={i}
                 className={cn(
                   'h-7 w-9 rounded-lg text-xs flex items-center justify-center text-white/90 font-mono font-medium',
-                  scoreColor(r.overallScore)
+                  getScoreColors(r.overallScore).bg
                 )}
                 title={`第${r.questionIndex + 1}题: ${r.overallScore}分`}
               >
