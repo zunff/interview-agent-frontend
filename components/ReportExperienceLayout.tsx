@@ -3,6 +3,7 @@
 import { cn } from '@/lib/utils';
 import PageBackground from './PageBackground';
 import AppHeader from './AppHeader';
+import type { BreadcrumbItemData } from './AppHeader';
 
 type ReportExperienceLayoutProps = {
   children: React.ReactNode;
@@ -16,6 +17,8 @@ type ReportExperienceLayoutProps = {
   headerExtra?: React.ReactNode;
   /** 主内容区宽度，报告页带侧栏时用 max-w-7xl */
   contentClassName?: string;
+  /** 面包屑路径 */
+  breadcrumbs?: BreadcrumbItemData[];
 };
 
 export function ReportExperienceLayout({
@@ -25,12 +28,13 @@ export function ReportExperienceLayout({
   showPageHeading = true,
   headerExtra,
   contentClassName,
+  breadcrumbs,
 }: ReportExperienceLayoutProps) {
   return (
     <main className="relative flex min-h-screen flex-col">
       <PageBackground />
 
-      <AppHeader right={headerExtra} />
+      <AppHeader right={headerExtra} breadcrumbs={breadcrumbs} />
 
       <div
         className={cn(

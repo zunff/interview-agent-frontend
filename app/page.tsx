@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useTypingEffect } from '../hooks/useTypingEffect';
 import { ReportExperienceLayout } from '../components/ReportExperienceLayout';
-import { Loader2, History } from 'lucide-react';
+import { Loader2, History, FileSearch } from 'lucide-react';
 
 const InterviewForm = dynamic(() => import('../components/InterviewForm'), {
   loading: () => (
@@ -48,14 +48,24 @@ export default function Home() {
   return (
     <ReportExperienceLayout
       headerExtra={
-        <Link
-          href="/history"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-        >
-          <History className="size-4" />
-          <span>历史记录</span>
-        </Link>
+        <>
+          <Link
+            href="/resume"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <FileSearch className="size-4" />
+            <span>简历分析</span>
+          </Link>
+          <Link
+            href="/history"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <History className="size-4" />
+            <span>历史记录</span>
+          </Link>
+        </>
       }
+      breadcrumbs={[{ label: '首页' }]}
     >
       {/* AI Greeting Display */}
       <div className="w-full max-w-3xl mb-10">
