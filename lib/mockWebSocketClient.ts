@@ -9,6 +9,7 @@ import type {
   WebSocketMessage,
   EvaluationResult,
   StartInterviewMessage,
+  ResumeInterviewMessage,
   VideoFrameMessage,
   AudioChunkMessage,
   AnswerCompleteMessage,
@@ -119,6 +120,17 @@ export class MockWebSocketClient {
       maxBusinessQuestions: data.maxBusinessQuestions,
       maxFollowUps: data.maxFollowUps,
       ...(data.positionLevel ? { positionLevel: data.positionLevel } : {}),
+    };
+    this.send(message);
+  }
+
+  /**
+   * 恢复面试
+   */
+  sendResumeInterview(sessionId: string): void {
+    const message: ResumeInterviewMessage = {
+      type: 'resume_interview',
+      sessionId,
     };
     this.send(message);
   }
@@ -259,6 +271,9 @@ export class MockWebSocketClient {
       case 'start_interview':
         await this.handleStartInterview(message);
         break;
+      case 'resume_interview':
+        await this.handleResumeInterview(message);
+        break;
       case 'self_intro_complete':
         await this.handleSelfIntroComplete();
         break;
@@ -325,6 +340,50 @@ export class MockWebSocketClient {
 
     // 发送 job_analysis_complete
     this.emit('job_analysis_complete', {});
+  }
+
+  /**
+   * 处理 resume_interview：恢复面试
+   */
+  private async handleResumeInterview(message: ResumeInterviewMessage): Promise<void> {
+    console.log('[MockWS] 收到 resume_interview, sessionId:', message.sessionId);
+
+    // 使用传入的 sessionId
+    this.sessionId = message.sessionId;
+
+    // 恢复配置（使用默认值）
+    this.interviewConfig = {
+      maxTechnicalQuestions: 6,
+      maxBusinessQuestions: 4,
+      maxFollowUps: 2,
+    };
+
+    // 生成题目序列
+    this.questions = generateQuestionSequence(
+      this.interviewConfig.maxTechnicalQuestions,
+      this.interviewConfig.maxBusinessQuestions,
+      this.interviewConfig.maxFollowUps,
+    );
+
+    // 模拟从第 3 题恢复（假设中断时在第 3 题）
+    this.currentQuestionIndex = 2;
+
+    console.log(`[MockWS] 恢复面试，从第 ${this.currentQuestionIndex + 1} 题开始`);
+
+    // 模拟服务器响应延迟
+    await sleep(300);
+
+    // 发送 interview_resumed
+    this.emit('interview_resumed', {
+      sessionId: this.sessionId,
+      currentRound: 'TECHNICAL',
+      interruptNode: 'TECH_ASK_QUESTION',
+    });
+
+    await sleep(500);
+
+    // 发送当前题目
+    await this.sendNextQuestion();
   }
 
   /**

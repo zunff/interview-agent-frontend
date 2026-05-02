@@ -12,6 +12,7 @@ export interface QuestionInfo {
 // WebSocket消息类型
 export type WebSocketMessageType =
   | 'start_interview'
+  | 'resume_interview'
   | 'audio_start'
   | 'video_frame'
   | 'audio_chunk'
@@ -28,7 +29,8 @@ export type WebSocketMessageType =
   | 'audio_question_start'
   | 'audio_question_chunk'
   | 'audio_question_end'
-  | 'audio_question_error';
+  | 'audio_question_error'
+  | 'interview_resumed';
 
 // 具体消息类型定义
 
@@ -50,6 +52,11 @@ export interface JobAnalysisCompleteMessage {
 export type PositionLevel = 'junior' | 'mid' | 'senior' | 'expert';
 
 // 客户端 → 服务端
+
+export interface ResumeInterviewMessage {
+  type: 'resume_interview';
+  sessionId: string;
+}
 
 export interface StartInterviewMessage {
   type: 'start_interview';
@@ -165,6 +172,17 @@ export interface AudioQuestionErrorMessage {
   timestamp?: number;
 }
 
+// 面试已恢复（服务端 → 客户端）
+export interface InterviewResumedMessage {
+  type: 'interview_resumed';
+  payload: {
+    sessionId: string;
+    currentRound: string;
+    interruptNode: string;
+  };
+  timestamp?: number;
+}
+
 // 基础WebSocket消息类型
 export interface BaseWebSocketMessage {
   type: string;
@@ -175,6 +193,7 @@ export interface BaseWebSocketMessage {
 // 联合类型
 export type WebSocketMessage =
   | StartInterviewMessage
+  | ResumeInterviewMessage
   | AudioStartMessage
   | VideoFrameMessage
   | AudioChunkMessage
@@ -190,7 +209,8 @@ export type WebSocketMessage =
   | ErrorMessage
   | AudioQuestionStartMessage
   | AudioQuestionEndMessage
-  | AudioQuestionErrorMessage;
+  | AudioQuestionErrorMessage
+  | InterviewResumedMessage;
 
 // 评估结果
 export interface EvaluationResult {

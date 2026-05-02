@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useInterviewStore } from '../store/interviewStore';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
-import { Video, VideoOff, Mic, MicOff, Phone, Clock, MessageSquare, X, ChevronLeft } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, Phone, PhoneOff, Clock, MessageSquare, X, ChevronLeft, Loader2 } from 'lucide-react';
 import QuestionDisplay from './QuestionDisplay';
 import ThemeToggle from './ThemeToggle';
 import { AudioEncoderManager } from '../lib/audioEncoderManager';
@@ -69,6 +69,7 @@ const VideoInterview = () => {
   const [isModelReady, setIsModelReady] = useState(false);
   const [isQuestionExpanded, setIsQuestionExpanded] = useState(true);
   const [evalStatusIndex, setEvalStatusIndex] = useState(0);
+  const [isHangingUp, setIsHangingUp] = useState(false);
 
   // 评估/等待后端阶段：右上角文案轮换（如首题生成可能较久）
   useEffect(() => {
@@ -363,14 +364,18 @@ const VideoInterview = () => {
   }, [wsClient, answerPhase, interviewPhase, isReady, setAnswerPhase]);
 
   const handleExit = useCallback(() => {
-    if (audioEncoderRef.current) {
-      audioEncoderRef.current.dispose();
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-    }
-    clearState();
-    router.push('/');
+    setIsHangingUp(true);
+    // 稍后执行清理，让用户看到挂断状态
+    setTimeout(() => {
+      if (audioEncoderRef.current) {
+        audioEncoderRef.current.dispose();
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      clearState();
+      router.push('/');
+    }, 500);
   }, [clearState, router]);
 
   const formatTime = (seconds: number) => {
@@ -397,6 +402,18 @@ const VideoInterview = () => {
 
   return (
     <div className="fixed inset-0 bg-background flex flex-col">
+      {/* 挂断面试 Loading 遮罩 */}
+      {isHangingUp && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="text-center space-y-4">
+            <Loader2 className="size-12 text-primary animate-spin mx-auto" />
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold text-foreground">正在结束面试</h2>
+              <p className="text-sm text-muted-foreground">清理资源中...</p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="h-16 bg-card/50 backdrop-blur-xl flex items-center justify-between px-6 border-b border-border/50 shrink-0">
         <div className="flex items-center gap-4">
@@ -616,9 +633,10 @@ const VideoInterview = () => {
           variant="ghost"
           size="icon"
           onClick={handleExit}
+          disabled={isHangingUp}
           className="size-14 rounded-2xl text-destructive hover:bg-destructive/10 hover:text-destructive transition-all duration-200 border border-border/50"
         >
-          <Phone className="size-6" />
+          {isHangingUp ? <Loader2 className="size-6 animate-spin" /> : <PhoneOff className="size-6" />}
         </Button>
       </footer>
     </div>

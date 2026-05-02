@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "../components/ThemeProvider";
 
@@ -27,31 +28,31 @@ export default function RootLayout({
       className="h-full antialiased scroll-smooth"
       suppressHydrationWarning
     >
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var theme = localStorage.getItem('theme') || 'system';
-                  var resolvedTheme = theme;
-
-                  if (theme === 'system') {
-                    resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                  }
-
-                  if (resolvedTheme === 'dark') {
-                    document.documentElement.classList.add('dark');
-                  } else {
-                    document.documentElement.classList.remove('dark');
-                  }
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
-      </head>
+      <head />
       <body className="min-h-full flex flex-col">
+        <Script
+          id="theme-script"
+          strategy="beforeInteractive"
+        >
+          {`
+            (function() {
+              try {
+                var theme = localStorage.getItem('theme') || 'system';
+                var resolvedTheme = theme;
+
+                if (theme === 'system') {
+                  resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
+
+                if (resolvedTheme === 'dark') {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch (e) {}
+            })();
+          `}
+        </Script>
         <ThemeProvider>
           {children}
         </ThemeProvider>

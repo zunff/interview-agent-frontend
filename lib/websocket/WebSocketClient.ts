@@ -5,6 +5,7 @@ import type {
   AnswerCompleteMessage,
   SelfIntroCompleteMessage,
   StartInterviewMessage,
+  ResumeInterviewMessage,
   AudioStartMessage,
 } from '../../types/index.js';
 
@@ -61,6 +62,13 @@ export class WebSocketClient {
             }
 
             const parsedMessage = JSON.parse(event.data);
+
+            // 忽略心跳消息（空对象或无 type 字段）
+            if (!parsedMessage.type) {
+              console.log('[WS 收到] 心跳消息');
+              return;
+            }
+
             console.log('[WS 收到]', parsedMessage.type, parsedMessage.payload ?? '');
 
             if (!this.validateMessage(parsedMessage)) {
@@ -155,6 +163,14 @@ export class WebSocketClient {
       maxBusinessQuestions: data.maxBusinessQuestions,
       maxFollowUps: data.maxFollowUps,
       ...(data.positionLevel ? { positionLevel: data.positionLevel } : {}),
+    };
+    this.send(message);
+  }
+
+  sendResumeInterview(sessionId: string): void {
+    const message: ResumeInterviewMessage = {
+      type: 'resume_interview',
+      sessionId,
     };
     this.send(message);
   }
@@ -340,6 +356,8 @@ export class WebSocketClient {
     switch (message.type) {
       case 'start_interview':
         return typeof message.resume === 'string' && typeof message.jobInfo === 'string';
+      case 'resume_interview':
+        return typeof message.sessionId === 'string';
       case 'audio_start':
         return typeof message.startTimestampMs === 'number';
       case 'video_frame':
@@ -378,6 +396,11 @@ export class WebSocketClient {
       case 'audio_question_error':
         return typeof message.payload === 'object' &&
                typeof message.payload.message === 'string';
+      case 'interview_resumed':
+        return typeof message.payload === 'object' &&
+               typeof message.payload.sessionId === 'string' &&
+               typeof message.payload.currentRound === 'string' &&
+               typeof message.payload.interruptNode === 'string';
       default:
         return true;
     }

@@ -214,7 +214,33 @@ sequenceDiagram
   2. 获取缓存的视频帧（带时间戳）
   3. 获取缓存的 PCM 音频，转换为 WAV 格式
   4. 调用 Qwen-Omni 模型进行综合评估（转录文本 + 关键帧 + 音频，一次调用）
-- 分析完成后会推送 `evaluation_result` 和 `new_question`（或 `final_report`）
+- 分析完成后会推送 `new_question`（下一题或追问）或 `final_report`（面试结束）
+
+### resume_interview - 恢复断连面试
+
+**用途**：WebSocket 重连后恢复之前的面试流程
+
+**请求参数**：
+```json
+{
+  "type": "resume_interview",
+  "sessionId": "dce43fc34e0a4221"
+}
+```
+
+**字段说明**：
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `sessionId` | string | 是 | 之前面试的会话ID |
+
+**说明**：
+- 当 WebSocket 连接意外断开后，客户端重新连接并发送此消息恢复面试
+- 服务端从 `graph_checkpoint` 表加载最新 checkpoint 状态，恢复图执行
+- 根据 checkpoint 的 `nodeId` 和 `nextNodeId` 判断中断位置，决定恢复策略：
+  - 如果在 `ASK_QUESTION` 后中断（等待回答）：重新推送当前题目
+  - 如果在 `PROFILE_ANALYSIS` 前中断（等待自我介绍）：推送 `self_intro` 信号
+- 如果面试已结束（`FINISHED`），会返回错误
+- checkpoint 持久化到数据库，支持服务重启后恢复
 
 ## 服务端 → 客户端
 
@@ -322,56 +348,6 @@ sequenceDiagram
   - 追问题目：实时生成（`isFollowUp` 为 true）
 - 批量预生成机制保证了题目推送的低延迟，追问题目为实时生成以适应动态评估结果
 
-### evaluation_result - 答案评估结果
-
-**响应格式**：
-```json
-{
-  "type": "evaluation_result",
-  "payload": {
-    "questionIndex": 1,
-    "question": "请介绍一下你在简历中提到的电商系统架构设计",
-    "answer": "我之前的项目主要使用Spring Boot...",
-    "accuracy": 85,
-    "logic": 80,
-    "fluency": 75,
-    "confidence": 70,
-    "emotionScore": 65,
-    "bodyLanguageScore": 60,
-    "voiceToneScore": 72,
-    "overallScore": 73,
-    "strengths": ["回答内容准确", "技术细节丰富"],
-    "weaknesses": ["肢体语言略显紧张"],
-    "detailedEvaluation": "候选人展示了扎实的...",
-    "needFollowUp": false,
-    "followUpSuggestion": null,
-    "modalityFollowUpSuggestion": "肢体语言紧张，建议追问自信度",
-    "modalityConcern": true
-  },
-  "timestamp": 1699999999999
-}
-```
-
-**字段说明**：
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `questionIndex` | int | 问题序号 |
-| `question` | string | 问题内容 |
-| `answer` | string | 回答内容（ASR 转录结果） |
-| `accuracy` | int | 内容准确性得分 (0-100) |
-| `logic` | int | 逻辑清晰度得分 (0-100) |
-| `fluency` | int | 表达流畅度得分 (0-100) |
-| `confidence` | int | 自信程度得分 (0-100) |
-| `emotionScore` | int | 视频情感得分 (0-100)，由 Omni 从关键帧分析 |
-| `bodyLanguageScore` | int | 肢体语言得分 (0-100)，由 Omni 从关键帧分析 |
-| `voiceToneScore` | int | 语音语调得分 (0-100)，由 Omni 从原始音频分析 |
-| `overallScore` | int | 综合得分 (0-100)，按权重计算：语义75% + 语音15% + 视觉10% |
-| `strengths` | string[] | 优点列表 |
-| `weaknesses` | string[] | 不足列表 |
-| `detailedEvaluation` | string | 详细评价 |
-| `needFollowUp` | boolean | 是否需要追问（内部决策，不影响前端） |
-| `modalityConcern` | boolean | 是否存在多模态异常（任一维度得分 < 60） |
-
 ### final_report - 最终面试报告
 
 **响应格式**：
@@ -475,6 +451,34 @@ ws.onmessage = (event) => {
   "timestamp": 1699999999999
 }
 ```
+
+### interview_resumed - 面试已恢复
+
+**响应格式**：
+```json
+{
+  "type": "interview_resumed",
+  "payload": {
+    "sessionId": "dce43fc34e0a4221",
+    "currentRound": "TECHNICAL",
+    "interruptNode": "TECH_ASK_QUESTION"
+  },
+  "timestamp": 1699999999999
+}
+```
+
+**字段说明**：
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `sessionId` | string | 面试会话ID |
+| `currentRound` | string | 当前轮次（TECHNICAL/BUSINESS），从 checkpoint 推断 |
+| `interruptNode` | string | 中断时的图节点名，从 checkpoint 读取 |
+
+**说明**：
+- 收到 `resume_interview` 后返回，表示面试已成功恢复
+- 服务端从 `graph_checkpoint` 表加载最新 checkpoint，根据 `nodeId`/`nextNodeId` 推断中断位置
+- 紧接着会推送当前题目（`new_question`）或自我介绍信号（`self_intro`）
+- 前端收到后应恢复面试 UI 状态
 
 ## 评估流程说明
 

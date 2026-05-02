@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import ParticleBackground from './ParticleBackground';
 import { useTheme } from './ThemeProvider';
 
@@ -8,6 +9,17 @@ import { useTheme } from './ThemeProvider';
  */
 export default function PageBackground() {
   const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Avoid hydration mismatch by not rendering theme-dependent content until mounted
+  if (!mounted) {
+    return null;
+  }
+
   const isDark = resolvedTheme === 'dark';
 
   return (

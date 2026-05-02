@@ -25,8 +25,9 @@ const ThemeContext = createContext<ThemeContextType>({
 export const useTheme = () => useContext(ThemeContext);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(getSystemTheme);
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark');
 
   const applyTheme = useCallback((t: 'light' | 'dark') => {
     document.documentElement.classList.toggle('dark', t === 'dark');
@@ -47,6 +48,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [applyTheme, resolveTheme]);
 
   useEffect(() => {
+    setMounted(true);
     const saved = localStorage.getItem('theme') as Theme | null;
     const initial = saved || DEFAULT_THEME;
     if (!saved) {
@@ -67,6 +69,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [applyTheme, resolveTheme]);
 
+  // Avoid hydration mismatch by rendering children immediately
+  // The theme will be correctly applied after mount
   return (
     <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
       {children}
